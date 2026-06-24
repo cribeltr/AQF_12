@@ -70,6 +70,7 @@ MAPA_COLUMNAS = {
     "vida util residual": "vida_util_residual",
     "clasificacion": "clasificacion",
     "enu / baja": "enu_baja",
+    "observacion": "observaciones",   # columna "Observación" de la planilla
 }
 
 # Columnas que SIEMPRE se tratan como texto (preservan ceros a la izquierda).
@@ -78,11 +79,17 @@ COLUMNAS_TEXTO_ESTRICTO = {"n_inventario", "serie"}
 # Valores que en realidad significan "sin dato" y se normalizan a NULL.
 PLACEHOLDERS_VACIOS = {"", "n/a", "na", "s/n", "sin dato", "-", "--", "."}
 
+# Columnas que se leen desde la planilla.
 ORDEN_COLUMNAS = [
     "id", "n_carpeta", "n_inventario", "equipo", "servicio", "unidad",
     "ubicacion", "procedencia", "marca", "modelo", "serie",
     "anio_instalacion", "vida_util_residual", "clasificacion", "enu_baja",
+    "observaciones",
 ]
+
+# Columnas de la tabla (incluye 'notas', que no viene de la planilla y se
+# inicializa vacía para que el usuario la complete).
+COLUMNAS_DB = ORDEN_COLUMNAS + ["notas"]
 
 
 # --------------------------------------------------------------------------- #
@@ -206,6 +213,9 @@ def leer_filas(excel: Path, hoja: str) -> list[dict]:
         if not isinstance(registro["id"], int):
             registro["id"] = contador_orden
 
+        # 'notas' no existe en la planilla: empieza vacía.
+        registro["notas"] = None
+
         registros.append(registro)
 
     return registros
@@ -222,14 +232,14 @@ def crear_base(db: Path) -> sqlite3.Connection:
 
 def insertar(con: sqlite3.Connection, registros: list[dict]) -> tuple[int, list[str]]:
     """Inserta los registros y devuelve (insertados, lista_de_conflictos)."""
-    columnas = ", ".join(ORDEN_COLUMNAS)
-    marcadores = ", ".join(["?"] * len(ORDEN_COLUMNAS))
+    columnas = ", ".join(COLUMNAS_DB)
+    marcadores = ", ".join(["?"] * len(COLUMNAS_DB))
     sql = f"INSERT INTO equipos ({columnas}) VALUES ({marcadores})"
 
     insertados, conflictos = 0, []
     for reg in registros:
         try:
-            con.execute(sql, [reg[c] for c in ORDEN_COLUMNAS])
+            con.execute(sql, [reg[c] for c in COLUMNAS_DB])
             insertados += 1
         except sqlite3.IntegrityError as exc:
             conflictos.append(

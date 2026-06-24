@@ -115,6 +115,31 @@ Para regenerarlo a partir de la base:
 python scripts/generar_html.py     # equipos.db -> equipos_filtrable.html
 ```
 
+### Escribir notas y observaciones
+
+Las columnas **Observaciones** (precargadas con la columna *Observación* de la
+planilla) y **Notas** (campo libre) son **editables**: haz clic en la celda y
+escribe. Cómo se guardan:
+
+1. **Automático en el navegador** (localStorage): se conservan al recargar.
+2. **💾 Guardar notas**: descarga `notas_equipos.json`, un respaldo portable
+   (para llevarlas a otro computador o devolverlas a la base de datos).
+3. **📂 Cargar notas**: importa un `notas_equipos.json` previo.
+
+> El guardado en el navegador depende del equipo/navegador. Para no perder
+> trabajo, usa **Guardar notas** periódicamente. Si hay cambios sin respaldar,
+> aparece el aviso *“● notas sin respaldar en archivo”*.
+
+Para incorporar las notas a la base de datos (que sea la fuente de verdad):
+
+```bash
+python scripts/aplicar_notas.py notas_equipos.json   # vuelca el JSON a equipos.db
+python scripts/generar_html.py                       # regenera el HTML ya con las notas
+```
+
+Cada equipo se identifica por `Serie` → `N° Inventario` → `#ID` (el primero no
+vacío), tanto en el HTML como al volcar a la base.
+
 ## Estructura del repositorio
 
 ```
@@ -123,10 +148,11 @@ python scripts/generar_html.py     # equipos.db -> equipos_filtrable.html
 │   └── Programacion_MP_2026.xlsm   # Planilla de origen
 ├── scripts/
 │   ├── importar_excel.py           # Importador Excel -> SQLite
-│   └── generar_html.py             # Genera la tabla HTML con filtros tipo Excel
+│   ├── generar_html.py             # Genera la tabla HTML con filtros tipo Excel
+│   └── aplicar_notas.py            # Vuelca notas_equipos.json a la base de datos
 ├── schema.sql                      # Definición de la tabla, índices y vista
 ├── equipos.db                      # Base de datos generada (966 equipos)
-├── equipos_filtrable.html          # Tabla interactiva con filtros por columna
+├── equipos_filtrable.html          # Tabla interactiva: filtros + notas editables
 ├── requirements.txt                # Dependencias (openpyxl)
 └── README.md
 ```

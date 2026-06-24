@@ -39,7 +39,9 @@ CREATE TABLE equipos (
     anio_instalacion    INTEGER,               -- Año Instalación
     vida_util_residual  TEXT,                  -- Vida Útil Residual (número o "Disponible")
     clasificacion       TEXT,                  -- Clasificación
-    enu_baja            TEXT                   -- ENU / Baja
+    enu_baja            TEXT,                  -- ENU / Baja
+    observaciones       TEXT,                  -- Observaciones (precargadas de la planilla; editables)
+    notas               TEXT                   -- Notas (campo libre del usuario; editables)
 );
 
 -- Identidad única del equipo (solo sobre valores presentes).
@@ -70,6 +72,8 @@ SELECT
     anio_instalacion   AS "Año Instalación",
     vida_util_residual AS "Vida Útil Residual",
     clasificacion      AS "Clasificación",
-    enu_baja           AS "ENU / Baja"
+    enu_baja           AS "ENU / Baja",
+    observaciones      AS "Observaciones",
+    notas              AS "Notas"
 FROM equipos
 ORDER BY id;
