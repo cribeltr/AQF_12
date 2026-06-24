@@ -96,6 +96,25 @@ Desde la terminal:
 sqlite3 equipos.db "SELECT id, equipo, marca, serie FROM equipos WHERE serie='00888';"
 ```
 
+## Tabla con filtros tipo Excel (HTML)
+
+El archivo **`equipos_filtrable.html`** es una tabla autónoma (no necesita
+servidor ni internet) en la que **cada columna es filtrable al estilo Excel**:
+
+- Haz clic en el **▾** del encabezado para abrir un desplegable con casillas y
+  marcar **uno o más valores**.
+- El desplegable se ajusta a los filtros de las otras columnas (como Excel) y
+  trae búsqueda de valores y orden A→Z / Z→A.
+- Búsqueda global, indicador de columnas filtradas, contador de resultados y
+  **Exportar CSV** de la vista actual.
+- Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.
+
+Para regenerarlo a partir de la base:
+
+```bash
+python scripts/generar_html.py     # equipos.db -> equipos_filtrable.html
+```
+
 ## Estructura del repositorio
 
 ```
@@ -103,9 +122,11 @@ sqlite3 equipos.db "SELECT id, equipo, marca, serie FROM equipos WHERE serie='00
 ├── data/
 │   └── Programacion_MP_2026.xlsm   # Planilla de origen
 ├── scripts/
-│   └── importar_excel.py           # Importador Excel -> SQLite
+│   ├── importar_excel.py           # Importador Excel -> SQLite
+│   └── generar_html.py             # Genera la tabla HTML con filtros tipo Excel
 ├── schema.sql                      # Definición de la tabla, índices y vista
 ├── equipos.db                      # Base de datos generada (966 equipos)
+├── equipos_filtrable.html          # Tabla interactiva con filtros por columna
 ├── requirements.txt                # Dependencias (openpyxl)
 └── README.md
 ```
