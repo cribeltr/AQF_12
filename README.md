@@ -1,1 +1,111 @@
-# AQF_12
+# AQF_12 — Base de datos de equipos médicos (Programa de Mantenciones Preventivas 2026)
+
+Este repositorio importa la planilla **`Programacion_MP_2026.xlsm`** y crea una
+base de datos **SQLite** (`equipos.db`) con el inventario de equipos médicos.
+
+## Columnas de la base de datos
+
+La tabla `equipos` contiene exactamente estas columnas (origen: hoja
+`PMP_2026` de la planilla):
+
+| Columna en la planilla | Columna en SQLite    | Tipo    | Notas |
+|------------------------|----------------------|---------|-------|
+| ID                     | `id`                 | INTEGER | Orden dentro de la planilla (clave primaria) |
+| N° Carpeta             | `n_carpeta`          | INTEGER | |
+| N° Inventario          | `n_inventario`       | TEXT    | **Se conserva tal cual** (preserva ceros) |
+| Equipo                 | `equipo`             | TEXT    | |
+| Servicio               | `servicio`           | TEXT    | |
+| Unidad                 | `unidad`             | TEXT    | |
+| Ubicación              | `ubicacion`          | TEXT    | |
+| Procedencia            | `procedencia`        | TEXT    | |
+| Marca                  | `marca`              | TEXT    | |
+| Modelo                 | `modelo`             | TEXT    | |
+| Serie                  | `serie`              | TEXT    | **Se conserva tal cual** (preserva ceros) |
+| Año Instalación        | `anio_instalacion`   | INTEGER | |
+| Vida Útil Residual     | `vida_util_residual` | TEXT    | Número o `"Disponible"` (es una fórmula en Excel) |
+| Clasificación          | `clasificacion`      | TEXT    | |
+| ENU / Baja             | `enu_baja`           | TEXT    | |
+
+> También existe la vista **`vista_equipos`**, que expone los mismos datos con
+> los **encabezados originales** (`"N° Carpeta"`, `"Año Instalación"`, etc.) por
+> si prefieres consultar con esos nombres.
+
+## Reglas de identidad
+
+- **`id`** corresponde al **orden dentro de la planilla Excel**; es solo un
+  número de fila, no un identificador de negocio estable.
+- Cada equipo se **identifica de forma única por su `serie` o su
+  `n_inventario`**. Por eso ambos campos tienen un índice `UNIQUE` (parcial:
+  solo sobre los valores presentes, de modo que las filas sin identificador no
+  chocan entre sí).
+
+## Preservación de ceros a la izquierda
+
+Los números de serie e inventario se guardan como **TEXTO** y la importación
+**nunca los convierte a número**. Así, `"0024"` se mantiene como `"0024"` y
+jamás se transforma en `"24"`. Lo mismo ocurre con valores como `"02516."`,
+`"00888"`, `"2-013518"`, etc.
+
+## Cómo regenerar la base de datos
+
+Requisitos: Python 3.9+.
+
+```bash
+# 1. Instalar dependencias
+pip install -r requirements.txt
+
+# 2. Importar la planilla y crear equipos.db
+python scripts/importar_excel.py
+```
+
+Parámetros opcionales:
+
+```bash
+python scripts/importar_excel.py \
+    --excel data/Programacion_MP_2026.xlsm \
+    --db    equipos.db \
+    --hoja  PMP_2026
+```
+
+El script vuelve a crear la tabla desde cero en cada ejecución (es
+idempotente) e informa cuántos equipos se importaron y si hubo conflictos de
+unicidad.
+
+## Consultas de ejemplo
+
+```sql
+-- Buscar un equipo por número de serie (conservando ceros)
+SELECT * FROM equipos WHERE serie = '00888';
+
+-- Buscar por número de inventario
+SELECT * FROM equipos WHERE n_inventario = '2-013518';
+
+-- Equipos por servicio
+SELECT servicio, COUNT(*) AS total
+FROM equipos
+GROUP BY servicio
+ORDER BY total DESC;
+
+-- Ver los datos con los encabezados originales
+SELECT * FROM vista_equipos LIMIT 20;
+```
+
+Desde la terminal:
+
+```bash
+sqlite3 equipos.db "SELECT id, equipo, marca, serie FROM equipos WHERE serie='00888';"
+```
+
+## Estructura del repositorio
+
+```
+.
+├── data/
+│   └── Programacion_MP_2026.xlsm   # Planilla de origen
+├── scripts/
+│   └── importar_excel.py           # Importador Excel -> SQLite
+├── schema.sql                      # Definición de la tabla, índices y vista
+├── equipos.db                      # Base de datos generada (966 equipos)
+├── requirements.txt                # Dependencias (openpyxl)
+└── README.md
+```
