@@ -98,15 +98,20 @@ sqlite3 equipos.db "SELECT id, equipo, marca, serie FROM equipos WHERE serie='00
 
 ## Tabla con filtros tipo Excel (HTML)
 
-El archivo **`equipos_filtrable.html`** es una tabla autónoma (no necesita
-servidor ni internet) en la que **cada columna es filtrable al estilo Excel**:
+El archivo **`equipos_filtrable.html`** es una interfaz autónoma (no necesita
+servidor ni internet) para explorar y anotar los equipos:
 
-- Haz clic en el **▾** del encabezado para abrir un desplegable con casillas y
-  marcar **uno o más valores**.
-- El desplegable se ajusta a los filtros de las otras columnas (como Excel) y
-  trae búsqueda de valores y orden A→Z / Z→A.
-- Búsqueda global, indicador de columnas filtradas, contador de resultados y
-  **Exportar CSV** de la vista actual.
+- **Filtro por columna estilo Excel**: clic en el **▾** del encabezado para
+  marcar **uno o más valores** (con buscador y orden A→Z / Z→A). Los filtros se
+  combinan y cada lista se ajusta a lo ya filtrado.
+- **Chips de filtros activos** removibles, con resumen y *Limpiar todo*.
+- **Barra de estadísticas**: total, en pantalla, con notas, sin identificador.
+- **Columnas ID y Equipo congeladas** al hacer scroll horizontal, y **gestor de
+  columnas** (▦ Columnas) para mostrar/ocultar las que no interesan.
+- **Ficha de detalle**: clic en una fila abre un panel lateral con todos los
+  datos del equipo y áreas de texto cómodas para escribir.
+- **Densidad** cómoda/compacta, **búsqueda global**, **Exportar CSV** de la
+  vista actual y estado vacío cuando no hay coincidencias.
 - Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.
 
 Para regenerarlo a partir de la base:
