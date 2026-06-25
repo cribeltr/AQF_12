@@ -58,15 +58,27 @@ def main():
 
     aplicadas, sin_match = 0, []
     for k, campos in entrantes.items():
-        if k not in mapa:
-            sin_match.append(k)
+        if k not in mapa or not isinstance(campos, dict):
+            if k not in mapa:
+                sin_match.append(k)
             continue
         sets, valores = [], []
+        # Campos de texto libre.
         for campo in ("observaciones", "notas"):
-            if isinstance(campos, dict) and campo in campos:
+            if campo in campos:
                 sets.append(f"{campo} = ?")
                 v = campos[campo]
                 valores.append(v if (v is None or str(v).strip() != "") else None)
+        # Historial de intervenciones (lista) + columnas de consulta derivadas.
+        if "registros" in campos:
+            regs = campos["registros"] if isinstance(campos["registros"], list) else []
+            pendiente = 1 if any(r.get("p") for r in regs) else (0 if regs else None)
+            fechas = [r.get("f") for r in regs if r.get("f")]
+            ultima = max(fechas) if fechas else None
+            vencs = [r.get("v") for r in regs if r.get("p") and r.get("v")]
+            proximo = min(vencs) if vencs else None
+            sets += ["registros = ?", "pendiente = ?", "ultima_intervencion = ?", "proximo_vencimiento = ?"]
+            valores += [json.dumps(regs, ensure_ascii=False) if regs else None, pendiente, ultima, proximo]
         if sets:
             valores.append(mapa[k])
             con.execute(f"UPDATE equipos SET {', '.join(sets)} WHERE id = ?", valores)

@@ -41,7 +41,11 @@ CREATE TABLE equipos (
     clasificacion       TEXT,                  -- Clasificación
     enu_baja            TEXT,                  -- ENU / Baja
     observaciones       TEXT,                  -- Observaciones (precargadas de la planilla; editables)
-    notas               TEXT                   -- Notas (campo libre del usuario; editables)
+    notas               TEXT,                  -- Notas (campo libre del usuario; editables)
+    registros           TEXT,                  -- Intervenciones: JSON [{f:fecha, d:descripción, p:pendiente, v:vencimiento}]
+    pendiente           INTEGER,               -- 1 si hay alguna intervención pendiente, 0 si no, NULL si no hay registros
+    ultima_intervencion TEXT,                  -- Fecha (YYYY-MM-DD) de la intervención más reciente
+    proximo_vencimiento TEXT                   -- Fecha (YYYY-MM-DD) del próximo recordatorio/vencimiento pendiente
 );
 
 -- Identidad única del equipo (solo sobre valores presentes).
@@ -74,6 +78,10 @@ SELECT
     clasificacion      AS "Clasificación",
     enu_baja           AS "ENU / Baja",
     observaciones      AS "Observaciones",
-    notas              AS "Notas"
+    notas              AS "Notas",
+    registros          AS "Registros",
+    pendiente          AS "Pendiente",
+    ultima_intervencion AS "Última intervención",
+    proximo_vencimiento AS "Próximo vencimiento"
 FROM equipos
 ORDER BY id;

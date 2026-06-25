@@ -109,7 +109,11 @@ servidor ni internet) para explorar y anotar los equipos:
 - **Columnas ID y Equipo congeladas** al hacer scroll horizontal, y **gestor de
   columnas** (▦ Columnas) para mostrar/ocultar las que no interesan.
 - **Ficha de detalle**: clic en una fila abre un panel lateral con todos los
-  datos del equipo y áreas de texto cómodas para escribir.
+  datos del equipo, texto libre y el registro de intervenciones.
+- **Intervenciones, pendientes y recordatorios** (ver abajo): columnas
+  **Estado** (Vencido / Pendiente / Al día) y **Vence**, con resaltado de
+  vencidos (rojo) y próximos (ámbar) y filtros rápidos *⏳ Pendientes* y
+  *⚠ Vencidos*.
 - **Densidad** cómoda/compacta, **búsqueda global**, **Exportar CSV** de la
   vista actual y estado vacío cuando no hay coincidencias.
 - Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.
@@ -120,11 +124,33 @@ Para regenerarlo a partir de la base:
 python scripts/generar_html.py     # equipos.db -> equipos_filtrable.html
 ```
 
+### Cuatro formas de anotar (y en qué se diferencian)
+
+| Concepto | Qué responde | Ejemplo |
+|----------|--------------|---------|
+| **Observación** | *¿Cómo está el equipo? ¿Qué se constató?* — hecho **técnico / de estado** (viene de la columna *Observación* de la planilla). | "Batería al 40%", "Equipo operativo" |
+| **Nota** | *¿Qué quiero comentar/recordar yo?* — anotación **libre o administrativa**. | "Equipo prioritario", "En arriendo Mediplex" |
+| **Pendiente** | Una **tarea por hacer**: fecha + descripción + estado pendiente/listo. | "25-06: cambiar palas — pendiente" |
+| **Recordatorio** | Un pendiente con **fecha de vencimiento** que la app resalta cuando se acerca o ya pasó. | "Vence 01-08: renovar garantía" |
+
+**Intervenciones / pendientes / recordatorios** se gestionan en la ficha de
+detalle (clic en una fila): agrega cada intervención con su **fecha**,
+**descripción**, marca de **pendiente** y, opcionalmente, una **fecha de
+vencimiento** (recordatorio). La tabla deriva de ahí:
+
+- **Estado**: `Vencido` (hay un pendiente con vencimiento ya pasado),
+  `Pendiente`, `Al día` (tiene intervenciones, ninguna pendiente) o vacío.
+- **Vence**: el próximo vencimiento pendiente; se pinta rojo si está vencido y
+  ámbar si vence dentro de 30 días. La fila también se marca con un borde de
+  color.
+- Filtra al instante con *⏳ Pendientes* / *⚠ Vencidos* y revisa los contadores
+  de la barra de estadísticas.
+
 ### Escribir notas y observaciones
 
 Las columnas **Observaciones** (precargadas con la columna *Observación* de la
-planilla) y **Notas** (campo libre) son **editables**: haz clic en la celda y
-escribe. Cómo se guardan:
+planilla) y **Notas** (campo libre) son **editables**: haz clic en la celda (o
+usa la ficha de detalle) y escribe. Cómo se guardan:
 
 1. **Automático en el navegador** (localStorage): se conservan al recargar.
 2. **💾 Guardar notas**: descarga `notas_equipos.json`, un respaldo portable

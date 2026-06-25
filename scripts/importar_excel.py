@@ -87,9 +87,10 @@ ORDEN_COLUMNAS = [
     "observaciones",
 ]
 
-# Columnas de la tabla (incluye 'notas', que no viene de la planilla y se
-# inicializa vacía para que el usuario la complete).
-COLUMNAS_DB = ORDEN_COLUMNAS + ["notas"]
+# Columnas de la tabla que NO vienen de la planilla y se inicializan vacías
+# (las completa el usuario desde la interfaz / aplicar_notas.py).
+COLUMNAS_EXTRA = ["notas", "registros", "pendiente", "ultima_intervencion", "proximo_vencimiento"]
+COLUMNAS_DB = ORDEN_COLUMNAS + COLUMNAS_EXTRA
 
 
 # --------------------------------------------------------------------------- #
@@ -213,8 +214,9 @@ def leer_filas(excel: Path, hoja: str) -> list[dict]:
         if not isinstance(registro["id"], int):
             registro["id"] = contador_orden
 
-        # 'notas' no existe en la planilla: empieza vacía.
-        registro["notas"] = None
+        # Columnas que no vienen de la planilla: empiezan vacías.
+        for extra in COLUMNAS_EXTRA:
+            registro[extra] = None
 
         registros.append(registro)
 
