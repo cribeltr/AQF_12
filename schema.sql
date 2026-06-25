@@ -89,10 +89,16 @@ ORDER BY id;
 -- =====================================================================
 --  Programa de mantención (origen: hoja "Registro_MP-2026").
 --  Una fila por equipo y mes con programa o resultado registrado.
---   * programa  : 'X' = Programado, 'R' = Reprogramado, etc.
---   * resultado : 'Si' = Realizado; vacío = Pendiente; 'C#'/'R' = Reprogramado;
---                 'No' = No realizado; 'Baja'.
---   * fecha_ejecucion / ultima_actualizacion: los completa el usuario desde la
+--   Programa : 'X'  = Mantención Preventiva Programada
+--              'R'  = Mantención Preventiva Reprogramada
+--              'RA' = Reprogramada de Año Anterior
+--              'PM' = Puesta en Marcha
+--   Resultado: 'Si'    = Realizada;          vacío  = Pendiente
+--              'C1'-'C8'= Reprogramada (ver causales)
+--              'Si-RA'  = Realizada año ant.; 'FS'  = Fuera de Servicio
+--              'No'     = No Realizada;       'NU'  = No Ubicable
+--              'Baja'   = Equipo Dado de Baja
+--   fecha_ejecucion / ultima_actualizacion: los completa el usuario desde la
 --     interfaz (vía aplicar_notas.py). No vienen en el Excel.
 --  `clave` es la misma identidad del equipo: Serie -> N° Inventario -> "#"+ID.
 -- =====================================================================
@@ -102,9 +108,14 @@ DROP TABLE IF EXISTS mantenciones;
 CREATE TABLE mantenciones (
     id                   INTEGER PRIMARY KEY,
     clave                TEXT,       -- identidad del equipo (Serie/N° Inventario/#ID)
+    id_planilla          TEXT,       -- ID del equipo en la planilla
+    n_inventario         TEXT,
     equipo               TEXT,
-    serie                TEXT,
     servicio             TEXT,
+    ubicacion            TEXT,
+    marca                TEXT,
+    modelo               TEXT,
+    serie                TEXT,
     mes                  INTEGER,    -- 1 = Enero … 12 = Diciembre
     programa             TEXT,
     resultado            TEXT,
@@ -118,22 +129,37 @@ CREATE UNIQUE INDEX ux_mant_clave_mes ON mantenciones (clave, mes);
 -- Vista legible: mes con nombre y programa/resultado decodificados.
 CREATE VIEW vista_programa AS
 SELECT
-    equipo   AS "Equipo",
-    serie    AS "Serie",
-    servicio AS "Servicio",
+    id_planilla  AS "ID",
+    n_inventario AS "N° Inventario",
+    equipo       AS "Equipo",
+    servicio     AS "Servicio",
+    ubicacion    AS "Ubicación",
+    marca        AS "Marca",
+    modelo       AS "Modelo",
+    serie        AS "Serie",
     CASE mes WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
              WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
              WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
              WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
              ELSE mes END                                          AS "Mes",
-    CASE WHEN upper(programa) = 'X' THEN 'Programado'
-         WHEN upper(programa) = 'R' THEN 'Reprogramado'
+    CASE upper(programa)
+         WHEN 'X'  THEN 'Programada'
+         WHEN 'R'  THEN 'Reprogramada'
+         WHEN 'RA' THEN 'Reprogramada (año anterior)'
+         WHEN 'PM' THEN 'Puesta en marcha'
+         WHEN 'BAJA' THEN 'Baja'
          ELSE programa END                                        AS "Programa",
-    CASE WHEN upper(resultado) = 'SI' THEN 'Realizado'
+    CASE
          WHEN resultado IS NULL OR resultado = '' THEN 'Pendiente'
-         WHEN upper(resultado) = 'NO' THEN 'No realizado'
+         WHEN upper(resultado) = 'SI'    THEN 'Realizada'
+         WHEN upper(resultado) = 'SI-RA' THEN 'Realizada (año anterior)'
+         WHEN upper(resultado) IN ('C1','C2','C3','C4','C5','C6','C7','C8')
+              THEN 'Reprogramada (' || resultado || ')'
+         WHEN upper(resultado) = 'FS'   THEN 'Fuera de servicio'
+         WHEN upper(resultado) = 'NO'   THEN 'No realizada'
+         WHEN upper(resultado) = 'NU'   THEN 'No ubicable'
          WHEN upper(resultado) = 'BAJA' THEN 'Baja'
-         ELSE 'Reprogramado' END                                  AS "Resultado",
+         ELSE resultado END                                       AS "Resultado",
     fecha_ejecucion      AS "Fecha de ejecución",
     ultima_actualizacion AS "Última actualización"
 FROM mantenciones

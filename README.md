@@ -161,16 +161,27 @@ vencimiento** (recordatorio). La tabla deriva de ahí:
 
 El botón **📅 Programa MP** (o la tecla `p`) abre una vista con el programa de
 mantención del año, leído de la hoja `Registro_MP-2026` del Excel. Cada fila es
-una mantención (equipo × mes programado) con las columnas:
+una mantención (equipo × mes programado) con estas columnas:
 
-| Columna | Origen |
-|---------|--------|
-| Equipo, Serie, Servicio | identificación del equipo |
-| **Mes** | mes del programa |
-| **Programa** | `X` = Programado (también `R` = Reprogramado) |
-| **Resultado** | `Si` = Realizado · vacío = Pendiente · `C#`/`R` = Reprogramado · `No` · `Baja` |
-| **Fecha de ejecución** | **editable**, se completa al ejecutar la mantención |
-| **Última actualización** | se pone **sola** cada vez que editas la fecha |
+**ID · N° Inventario · Equipo · Servicio · Ubicación · Marca · Modelo · Serie ·
+Mes · Programa · Resultado · Fecha de ejecución · Última actualización**.
+
+Los códigos de **Programa** y **Resultado** se muestran decodificados (con el
+código original visible al pasar el cursor):
+
+| Programa | | Resultado | |
+|----|----|----|----|
+| `X`  | Mantención Preventiva Programada | `Si`      | Realizada |
+| `R`  | Reprogramada                     | `C1`–`C8` | Reprogramada (ver causales) |
+| `RA` | Reprogramada de Año Anterior     | `Si-RA`   | Realizada de Año Anterior |
+| `PM` | Puesta en Marcha                 | `FS`      | Fuera de Servicio |
+|      |                                  | `No`      | No Realizada |
+|      |                                  | `NU`      | No Ubicable |
+|      |                                  | `Baja`    | Equipo Dado de Baja |
+|      |                                  | *(vacío)* | Pendiente |
+
+La **Fecha de ejecución** es **editable** (se completa al ejecutar la mantención)
+y la **Última actualización** se pone **sola** cada vez que editas la fecha.
 
 Se puede filtrar por **mes** y por **resultado**, y la búsqueda global también
 aplica. La fecha de ejecución se guarda igual que las notas (localStorage +

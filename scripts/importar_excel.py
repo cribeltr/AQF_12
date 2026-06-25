@@ -266,27 +266,31 @@ def leer_programa(excel: Path, hoja: str = "Registro_MP-2026") -> list[tuple]:
     for r in ws.iter_rows(min_row=8, values_only=True):
         if len(r) < 16:
             continue
-        idv = a_texto_fiel(r[1]) or ""
+        idp = a_texto_fiel(r[1])
         inv = limpiar(a_texto_fiel(r[3]))
         eq = a_texto_fiel(r[4])
         sv = a_texto_fiel(r[5])
+        ub = a_texto_fiel(r[7])
+        ma = a_texto_fiel(r[9])
+        mo = a_texto_fiel(r[10])
         se = limpiar(a_texto_fiel(r[11]))
         if not (eq or se or inv):
             continue
-        clave = se or inv or ("#" + idv)
+        clave = se or inv or ("#" + (idp or ""))
         for m in range(12):
             pi, ri = 19 + 2 * m, 20 + 2 * m
             p = a_texto_fiel(r[pi]) if len(r) > pi else None
             res = a_texto_fiel(r[ri]) if len(r) > ri else None
             if p or res:
-                out.append((clave, eq, se, sv, m + 1, p, res))
+                out.append((clave, idp, inv, eq, sv, ub, ma, mo, se, m + 1, p, res))
     return out
 
 
 def insertar_mantenciones(con: sqlite3.Connection, programa: list[tuple]) -> int:
     """Inserta el programa en la tabla `mantenciones` (ignora duplicados clave+mes)."""
     sql = ("INSERT OR IGNORE INTO mantenciones "
-           "(clave, equipo, serie, servicio, mes, programa, resultado) VALUES (?,?,?,?,?,?,?)")
+           "(clave, id_planilla, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
+           "serie, mes, programa, resultado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
     antes = con.total_changes
     con.executemany(sql, programa)
     con.commit()

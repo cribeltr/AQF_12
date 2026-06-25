@@ -89,16 +89,18 @@ def leer_programa(db: Path):
     con = sqlite3.connect(db)
     try:
         q = con.execute(
-            "SELECT clave, equipo, serie, servicio, mes, programa, resultado, "
-            "fecha_ejecucion, ultima_actualizacion FROM mantenciones ORDER BY clave, mes"
+            "SELECT clave, id_planilla, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
+            "serie, mes, programa, resultado, fecha_ejecucion, ultima_actualizacion "
+            "FROM mantenciones ORDER BY clave, mes"
         ).fetchall()
     except sqlite3.OperationalError:
         con.close()
         return []
     con.close()
-    return [{"k": r[0], "eq": r[1] or "", "se": r[2] or "", "sv": r[3] or "",
-             "m": r[4], "p": r[5] or "", "r": r[6] or "",
-             "fe": r[7] or "", "ua": r[8] or ""} for r in q]
+    return [{"k": r[0], "id": r[1] or "", "inv": r[2] or "", "eq": r[3] or "", "sv": r[4] or "",
+             "ub": r[5] or "", "ma": r[6] or "", "mo": r[7] or "", "se": r[8] or "",
+             "m": r[9], "p": r[10] or "", "r": r[11] or "", "fe": r[12] or "", "ua": r[13] or ""}
+            for r in q]
 
 
 PLANTILLA = r"""<!DOCTYPE html>
@@ -333,7 +335,13 @@ PLANTILLA = r"""<!DOCTYPE html>
 
   /* ---------- Vista Programa de mantención ---------- */
   .badge.repro{ background:#e0e7ff; color:#3730a3; }
+  .badge.prog-x{ background:#dbeafe; color:#1e40af; }
+  .badge.prog-pm{ background:#ccfbf1; color:#0f766e; }
+  .badge.nu{ background:#ffedd5; color:#9a3412; }
   body[data-theme="oscuro"] .badge.repro{ background:#1e2553; color:#aab4f5; }
+  body[data-theme="oscuro"] .badge.prog-x{ background:#15294d; color:#9dc0f7; }
+  body[data-theme="oscuro"] .badge.prog-pm{ background:#0d2e2a; color:#7fe0d2; }
+  body[data-theme="oscuro"] .badge.nu{ background:#3a230f; color:#f4bd86; }
   .programa{ display:none; flex-direction:column; flex:1; overflow:hidden; }
   .programa.on{ display:flex; }
   .prog-bar{ display:flex; gap:10px; align-items:center; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--surface); flex-wrap:wrap; }
@@ -410,10 +418,12 @@ PLANTILLA = r"""<!DOCTYPE html>
     <select class="prog-sel" id="progMes"></select>
     <select class="prog-sel" id="progRes">
       <option value="">Todos los resultados</option>
-      <option value="realizado">Realizado</option>
+      <option value="realizado">Realizada</option>
       <option value="pendiente">Pendiente</option>
-      <option value="reprogramado">Reprogramado</option>
-      <option value="no">No realizado</option>
+      <option value="reprogramado">Reprogramada (C1–C8)</option>
+      <option value="no">No realizada</option>
+      <option value="nu">No ubicable</option>
+      <option value="fs">Fuera de servicio</option>
       <option value="baja">Baja</option>
     </select>
     <span class="prog-info" id="progInfo"></span>
@@ -421,7 +431,8 @@ PLANTILLA = r"""<!DOCTYPE html>
   <div class="prog-table-wrap">
     <table class="prog-table">
       <thead><tr>
-        <th>Equipo</th><th>Serie</th><th>Servicio</th><th>Mes</th>
+        <th>ID</th><th>N° Inventario</th><th>Equipo</th><th>Servicio</th><th>Ubicación</th>
+        <th>Marca</th><th>Modelo</th><th>Serie</th><th>Mes</th>
         <th>Programa</th><th>Resultado</th><th>Fecha de ejecución</th><th>Última actualización</th>
       </tr></thead>
       <tbody id="progBody"></tbody>
@@ -703,17 +714,29 @@ function togglePrograma(){ vista = (vista==='programa') ? 'tabla' : 'programa';
 function ahora(){ const d = new Date(), p = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 function resultadoEstado(r){ const s = (r||'').toString().trim().toUpperCase();
-  if (s==='SI') return 'realizado'; if (s==='NO') return 'no'; if (s==='BAJA') return 'baja';
-  if (s==='') return 'pendiente'; if (/^C\d$/.test(s) || s==='R' || s==='RA') return 'reprogramado'; return 'otro'; }
-function etiquetaResultado(r){ const e = resultadoEstado(r), raw = (r||'').toString().trim();
-  if (e==='realizado') return '<span class="badge ok">Realizado</span>';
-  if (e==='pendiente') return '<span class="badge pend">Pendiente</span>';
-  if (e==='no') return '<span class="badge venc">No realizado</span>';
-  if (e==='baja') return '<span class="badge">Baja</span>';
-  if (e==='reprogramado'){ const x = (raw && !['R','RA'].includes(raw.toUpperCase())) ? ` (${raw})` : ''; return `<span class="badge repro">Reprogramado${x}</span>`; }
+  if (s==='') return 'pendiente';
+  if (s==='SI' || s==='SI-RA') return 'realizado';
+  if (/^C[1-8]$/.test(s)) return 'reprogramado';
+  if (s==='NO') return 'no'; if (s==='NU') return 'nu'; if (s==='FS') return 'fs';
+  if (s==='BAJA') return 'baja'; return 'otro'; }
+function etiquetaResultado(r){ const raw = (r||'').toString().trim(), s = raw.toUpperCase();
+  if (s==='') return '<span class="badge pend">Pendiente</span>';
+  if (s==='SI') return '<span class="badge ok" title="Mantención Preventiva Realizada">Realizada</span>';
+  if (s==='SI-RA') return '<span class="badge ok" title="Mantención de Año Anterior Realizada">Realizada año ant.</span>';
+  if (/^C[1-8]$/.test(s)) return `<span class="badge repro" title="Mantención Preventiva Reprogramada (ver causales)">Reprogramada (${raw})</span>`;
+  if (s==='FS') return '<span class="badge venc" title="Fuera de Servicio">Fuera de servicio</span>';
+  if (s==='NO') return '<span class="badge venc" title="No Realizada">No realizada</span>';
+  if (s==='NU') return '<span class="badge nu" title="No Ubicable">No ubicable</span>';
+  if (s==='BAJA') return '<span class="badge" title="Equipo Dado de Baja">Baja</span>';
   return `<span class="badge">${raw||'—'}</span>`; }
-function etiquetaPrograma(p){ const s = (p||'').toString().trim().toUpperCase();
-  if (s==='X') return 'Programado'; if (s==='R') return 'Reprogramado'; return (p||'').toString().trim() || '—'; }
+function etiquetaPrograma(p){ const raw = (p||'').toString().trim(), s = raw.toUpperCase();
+  if (s==='') return '—';
+  if (s==='X') return '<span class="badge prog-x" title="Mantención Preventiva Programada">Programada</span>';
+  if (s==='R') return '<span class="badge repro" title="Mantención Preventiva Reprogramada">Reprogramada</span>';
+  if (s==='RA') return '<span class="badge repro" title="Reprogramada de Año Anterior">Reprog. año ant.</span>';
+  if (s==='PM') return '<span class="badge prog-pm" title="Puesta en Marcha">Puesta en marcha</span>';
+  if (s==='BAJA') return '<span class="badge" title="Equipo Dado de Baja">Baja</span>';
+  return `<span class="badge">${raw}</span>`; }
 function getProg(k,m){ return (notas[k] && notas[k].prog && notas[k].prog[m]) || {}; }
 function setProg(k,m,fe){ if(!notas[k]) notas[k]={}; if(!notas[k].prog) notas[k].prog={};
   const ua = ahora(); notas[k].prog[m] = {fe: fe||'', ua}; try{ localStorage.setItem(LS_KEY, JSON.stringify(notas)); }catch(e){} marcarDirty(true); return ua; }
@@ -721,21 +744,23 @@ function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase()
   return PROGRAMA.filter(x => {
     if (progMes && x.m !== +progMes) return false;
     if (progRes && resultadoEstado(x.r) !== progRes) return false;
-    if (q && ![x.eq,x.se,x.sv,MESES[x.m-1],x.p,x.r].some(v => norm(v).toLowerCase().includes(q))) return false;
+    if (q && ![x.id,x.inv,x.eq,x.sv,x.ub,x.ma,x.mo,x.se,MESES[x.m-1],x.p,x.r].some(v => norm(v).toLowerCase().includes(q))) return false;
     return true; }); }
 function renderPrograma(){
   const vis = programaVisibles();
   let real=0, pend=0; for (const x of PROGRAMA){ const e = resultadoEstado(x.r); if (e==='realizado') real++; else if (e==='pendiente') pend++; }
   $('#progInfo').innerHTML = `<b>${PROGRAMA.length.toLocaleString('es')}</b> mantenciones · <b>${real.toLocaleString('es')}</b> realizadas · <b>${pend.toLocaleString('es')}</b> pendientes · <b>${vis.length.toLocaleString('es')}</b> en pantalla`;
   const body = $('#progBody');
-  if (!vis.length){ body.innerHTML = '<tr><td colspan="8" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
+  if (!vis.length){ body.innerHTML = '<tr><td colspan="13" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
   const frag = document.createDocumentFragment();
   for (const x of vis){
     const ov = (notas[x.k] && notas[x.k].prog && notas[x.k].prog[x.m]) || null;
     const fe = ov ? (ov.fe || '') : (x.fe || '');
     const ua = ov ? (ov.ua || '') : (x.ua || '');
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.se)||'—'}</td><td>${norm(x.sv)||'—'}</td>
+    tr.innerHTML = `<td>${norm(x.id)||'—'}</td><td>${norm(x.inv)||'—'}</td>
+      <td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.sv)||'—'}</td><td>${norm(x.ub)||'—'}</td>
+      <td>${norm(x.ma)||'—'}</td><td>${norm(x.mo)||'—'}</td><td>${norm(x.se)||'—'}</td>
       <td>${MESES[x.m-1]}</td><td>${etiquetaPrograma(x.p)}</td><td>${etiquetaResultado(x.r)}</td>
       <td><input type="date" class="fe" data-k="${(x.k||'').replace(/"/g,'&quot;')}" data-m="${x.m}" value="${fe}"></td>
       <td class="ua">${fe ? ua : '—'}</td>`;
