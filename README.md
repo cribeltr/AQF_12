@@ -105,15 +105,18 @@ servidor ni internet) para explorar y anotar los equipos:
   marcar **uno o más valores** (con buscador y orden A→Z / Z→A). Los filtros se
   combinan y cada lista se ajusta a lo ya filtrado.
 - **Chips de filtros activos** removibles, con resumen y *Limpiar todo*.
-- **Barra de estadísticas**: total, en pantalla, con notas, sin identificador.
-- **Columnas ID y Equipo congeladas** al hacer scroll horizontal, y **gestor de
-  columnas** (▦ Columnas) para mostrar/ocultar las que no interesan.
+- **Tablero accionable**: los contadores *con pendientes*, *vencidos* y *vida
+  útil vencida* filtran la tabla al hacer clic.
+- **Señal de vida útil**: la columna *Vida Útil Residual* se colorea (rojo si
+  está agotada, ámbar si quedan ≤2 años, verde si vigente).
+- **Vista despejada por defecto**: parte mostrando las columnas más útiles; el
+  resto se activa en **▦ Columnas** (la preferencia se recuerda).
+- **Columnas ID y Equipo congeladas** al hacer scroll horizontal.
 - **Ficha de detalle**: clic en una fila abre un panel lateral con todos los
   datos del equipo, texto libre y el registro de intervenciones.
 - **Intervenciones, pendientes y recordatorios** (ver abajo): columnas
   **Estado** (Vencido / Pendiente / Al día) y **Vence**, con resaltado de
-  vencidos (rojo) y próximos (ámbar) y filtros rápidos *⏳ Pendientes* y
-  *⚠ Vencidos*.
+  vencidos (rojo) y próximos (ámbar).
 - **Densidad** cómoda/compacta, **búsqueda global**, **Exportar CSV** de la
   vista actual y estado vacío cuando no hay coincidencias.
 - Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.

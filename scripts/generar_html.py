@@ -128,9 +128,13 @@ PLANTILLA = r"""<!DOCTYPE html>
 
   .substrip{ background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
   .stats{ display:flex; gap:8px; flex-wrap:wrap; }
-  .stat{ background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:4px 11px; font-size:12px; color:var(--muted); }
+  .stat{ background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:4px 11px; font-size:12px; color:var(--muted); transition:.12s; }
   .stat b{ color:var(--text); font-weight:650; }
   .stat.venc b{ color:var(--red); } .stat.pend b{ color:var(--amber); }
+  .stat.click{ cursor:pointer; } .stat.click:hover{ background:#eef2f6; border-color:#cbd5e1; }
+  .stat.act{ background:var(--primary-050); border-color:var(--primary-100); }
+  .stat.act.venc{ background:var(--red-bg); border-color:#fecaca; }
+  .stat.act.pend{ background:var(--amber-bg); border-color:#fde68a; }
   .chips{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   .chip{ background:var(--primary-050); border:1px solid var(--primary-100); color:var(--primary-strong); border-radius:999px; padding:4px 6px 4px 11px; font-size:12px; display:inline-flex; align-items:center; gap:7px; }
   .chip button{ border:none; background:rgba(13,148,136,.14); color:var(--primary-strong); cursor:pointer; width:17px; height:17px; border-radius:50%; line-height:1; }
@@ -146,9 +150,10 @@ PLANTILLA = r"""<!DOCTYPE html>
   .th-label:hover{ color:#d1faf3; }
   .sort-ind{ font-size:10px; opacity:.9; min-width:9px; }
   .lapiz{ font-size:11px; opacity:.85; }
-  .filtro-btn{ cursor:pointer; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.1); color:#fff; border-radius:6px; font-size:10px; line-height:1; padding:4px 5px; }
+  .filtro-btn{ cursor:pointer; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.14); color:#fff; border-radius:6px; font-size:10px; line-height:1; padding:4px 5px; opacity:.62; transition:opacity .15s, background .15s; }
+  .th-inner:hover .filtro-btn{ opacity:1; }
   .filtro-btn:hover{ background:rgba(255,255,255,.25); }
-  .filtro-btn.activo{ background:#fde68a; color:#7c2d12; border-color:#f59e0b; }
+  .filtro-btn.activo{ background:#fde68a; color:#7c2d12; border-color:#f59e0b; opacity:1; }
   tbody td{ border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:var(--rowpad) 10px; white-space:nowrap; max-width:340px; overflow:hidden; text-overflow:ellipsis; vertical-align:top; background:var(--surface); }
   tbody tr:nth-child(even) td{ background:var(--row-alt); }
   tbody tr:hover td{ background:var(--row-hover); }
@@ -209,7 +214,7 @@ PLANTILLA = r"""<!DOCTYPE html>
   .dh .x:hover{ background:rgba(255,255,255,.3); }
   .dbody{ padding:16px 18px; overflow:auto; flex:1; }
   .sechead{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:4px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
-  .dl{ display:grid; grid-template-columns:128px 1fr; gap:7px 12px; margin:0 0 18px; }
+  .dl{ display:grid; grid-template-columns:120px 1fr; gap:8px 12px; margin:0 0 18px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:13px 15px; }
   .dl dt{ color:var(--muted); font-size:12px; } .dl dd{ margin:0; font-size:13px; word-break:break-word; }
   .field{ margin-bottom:16px; }
   .field > label{ display:flex; justify-content:space-between; align-items:center; font-weight:650; margin-bottom:6px; }
@@ -243,6 +248,10 @@ PLANTILLA = r"""<!DOCTYPE html>
   #toasts{ position:fixed; right:18px; bottom:18px; z-index:1200; display:flex; flex-direction:column; gap:8px; }
   .toast{ background:#0f172a; color:#fff; padding:10px 14px; border-radius:9px; box-shadow:var(--shadow-md); font-size:13px; }
   .toast .ok{ color:#34d399; }
+  .table-wrap::-webkit-scrollbar{ width:13px; height:13px; }
+  .table-wrap::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:9px; border:3px solid var(--bg); }
+  .table-wrap::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
+  :focus-visible{ outline:2px solid var(--primary); outline-offset:1px; border-radius:4px; }
   body.compact{ --rowpad:3px; font-size:12.5px; }
   @media (max-width:720px){ .appbar .sub{ display:none; } .search input{ min-width:150px; } }
 </style>
@@ -261,8 +270,6 @@ PLANTILLA = r"""<!DOCTYPE html>
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="search" id="busqueda" placeholder="Buscar en todas las columnas…">
   </div>
-  <button class="btn" id="fPend">⏳ Pendientes</button>
-  <button class="btn" id="fVenc">⚠ Vencidos</button>
   <button class="btn" id="btnCols">▦ Columnas</button>
   <button class="btn" id="btnDensidad">≣ Densidad</button>
   <button class="btn" id="limpiar">✕ Limpiar</button>
@@ -324,9 +331,10 @@ const VACIO = "(Vacías)", DIAS_PROX = 30;
 
 let notas = {};
 try { notas = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch(e){ notas = {}; }
-let oculto = new Set();
-try { oculto = new Set(JSON.parse(localStorage.getItem(LS_COLS) || '[]')); } catch(e){}
-let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow = null;
+const DEFAULT_OCULTO = [1, 5, 7, 11, 14];   // N° Carpeta, Unidad, Procedencia, Año Instalación, ENU/Baja
+let oculto;
+try { const g = localStorage.getItem(LS_COLS); oculto = new Set(g ? JSON.parse(g) : DEFAULT_OCULTO); } catch(e){ oculto = new Set(DEFAULT_OCULTO); }
+let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow = null, filtroVida = false;
 const filtros = new Map();
 
 const $ = s => document.querySelector(s);
@@ -382,7 +390,9 @@ function pasaExcepto(i, excepto){ for (const [col, set] of filtros){ if (col ===
 function coincideBusqueda(i){ const q = $('#busqueda').value.trim().toLowerCase(); if (!q) return true;
   for (let c = 0; c < HEADERS.length; c++) if (norm(getCell(i, c)).toLowerCase().includes(q)) return true; return false; }
 function indicesVisibles(){ let v = [];
-  for (let i = 0; i < ROWS.length; i++) if (pasaExcepto(i, -1) && coincideBusqueda(i)) v.push(i);
+  for (let i = 0; i < ROWS.length; i++){
+    if (filtroVida){ const n = parseFloat(norm(getCell(i, 12))); if (isNaN(n) || n >= 0) continue; }
+    if (pasaExcepto(i, -1) && coincideBusqueda(i)) v.push(i); }
   if (ordenCol !== null) v.sort((x, y) => ordenDir * comparar(ordenCol, getCell(x, ordenCol), getCell(y, ordenCol))); return v; }
 function valoresDisponibles(col){ const set = new Set();
   for (let i = 0; i < ROWS.length; i++) if (pasaExcepto(i, col) && coincideBusqueda(i)) set.add(claveFiltro(getCell(i, col)));
@@ -395,6 +405,12 @@ function celdaBadge(ci, s){
     return s ? `<span class="badge ${cls}">${s}</span>` : ''; }
   if (ci === IDX_ESTADO){ if (!s) return '';
     const cls = s==='Vencido'?'venc':(s==='Pendiente'?'pend':'ok'); return `<span class="badge ${cls}">${s}</span>`; }
+  if (ci === 12){ if (!s) return null;
+    if (/disponible/i.test(s)) return `<span class="badge" title="Sin uso registrado">${s}</span>`;
+    const n = parseFloat(s); if (isNaN(n)) return null;
+    const cls = n < 0 ? 'venc' : (n <= 2 ? 'pend' : 'ok');
+    const t = n < 0 ? 'Vida útil agotada' : (n <= 2 ? 'Por agotar' : 'Vida útil vigente');
+    return `<span class="badge ${cls}" title="${t} (años)">${s}</span>`; }
   return null;
 }
 
@@ -431,29 +447,39 @@ function render(){
   document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('activo', filtros.has(+b.dataset.col)));
   document.querySelectorAll('.sort-ind').forEach(el => { const c = +el.dataset.col;
     el.textContent = (ordenCol === c) ? (ordenDir === 1 ? '▲' : '▼') : ''; });
-  sincronizarBotonesEstado();
 }
 function onInlineEdit(ev){ const i = +ev.target.dataset.i, ci = +ev.target.dataset.ci;
   setCell(i, ci, ev.target.innerText);
   if (drawerRow === i){ const ta = $('#ta_'+ci); if (ta && ta.value !== ev.target.innerText) ta.value = ev.target.innerText; }
   tostarGuardado(); }
 function renderStats(filtrados){
-  let pend = 0, venc = 0;
-  for (let i = 0; i < ROWS.length; i++){ const e = estadoDe(i); if (e==='Vencido'){ venc++; pend++; } else if (e==='Pendiente') pend++; }
-  $('#stats').innerHTML =
-    `<span class="stat"><b>${ROWS.length.toLocaleString('es')}</b> equipos</span>`+
-    `<span class="stat"><b>${filtrados.toLocaleString('es')}</b> en pantalla</span>`+
-    `<span class="stat pend"><b>${pend}</b> con pendientes</span>`+
-    `<span class="stat venc"><b>${venc}</b> vencidos</span>`;
+  let pend = 0, venc = 0, vu = 0;
+  for (let i = 0; i < ROWS.length; i++){ const e = estadoDe(i); if (e==='Vencido'){ venc++; pend++; } else if (e==='Pendiente') pend++;
+    const n = parseFloat(norm(getCell(i, 12))); if (!isNaN(n) && n < 0) vu++; }
+  const cont = $('#stats'); cont.replaceChildren();
+  const mk = (html, o={}) => { const el = document.createElement('span');
+    el.className = 'stat' + (o.cls ? ' '+o.cls : '') + (o.click ? ' click' : '') + (o.act ? ' act' : '');
+    if (o.click) el.onclick = o.click; el.innerHTML = html; return el; };
+  cont.append(
+    mk(`<b>${ROWS.length.toLocaleString('es')}</b> equipos`),
+    mk(`<b>${filtrados.toLocaleString('es')}</b> en pantalla`),
+    mk(`<b>${pend}</b> con pendientes`, {cls:'pend', click:()=>toggleEstado(['Pendiente','Vencido']), act:estadoFiltrado(['Pendiente','Vencido'])}),
+    mk(`<b>${venc}</b> vencidos`, {cls:'venc', click:()=>toggleEstado(['Vencido']), act:estadoFiltrado(['Vencido'])}),
+    mk(`<b>${vu}</b> vida útil vencida`, {cls:'venc', click:toggleVida, act:filtroVida}),
+  );
 }
-function renderChips(){ const cont = $('#chips'); cont.innerHTML = ''; if (!filtros.size) return;
+function renderChips(){ const cont = $('#chips'); cont.innerHTML = ''; if (!filtros.size && !filtroVida) return;
   for (const [col, set] of filtros){ const txt = set.size === 1 ? [...set][0] : `${set.size} de ${valoresTotal(col)} valores`;
     const chip = document.createElement('span'); chip.className = 'chip';
     chip.innerHTML = `<span><b>${HEADERS[col]}:</b> ${txt}</span>`;
     const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Quitar filtro';
     x.onclick = () => { filtros.delete(col); render(); }; chip.appendChild(x); cont.appendChild(chip); }
+  if (filtroVida){ const chip = document.createElement('span'); chip.className = 'chip';
+    chip.innerHTML = '<span><b>Vida útil:</b> vencida</span>';
+    const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Quitar filtro';
+    x.onclick = () => { filtroVida = false; render(); }; chip.appendChild(x); cont.appendChild(chip); }
   const clr = document.createElement('button'); clr.className = 'clear-all'; clr.textContent = 'Limpiar todo';
-  clr.onclick = () => { filtros.clear(); render(); }; cont.appendChild(clr); }
+  clr.onclick = () => { filtros.clear(); filtroVida = false; render(); }; cont.appendChild(clr); }
 
 function construirEncabezado(){ const tr = $('#encabezado'); tr.replaceChildren();
   HEADERS.forEach((h, ci) => { if (!visible(ci)) return;
@@ -593,12 +619,8 @@ let _tg; function tostarGuardado(){ clearTimeout(_tg); _tg = setTimeout(()=>toas
 function toggleEstado(vals, btn){ const cur = filtros.get(IDX_ESTADO);
   const igual = cur && cur.size===vals.length && vals.every(v => cur.has(v));
   if (igual) filtros.delete(IDX_ESTADO); else filtros.set(IDX_ESTADO, new Set(vals)); render(); }
-function sincronizarBotonesEstado(){ const cur = filtros.get(IDX_ESTADO);
-  const esPend = cur && cur.size===2 && cur.has('Pendiente') && cur.has('Vencido');
-  const esVenc = cur && cur.size===1 && cur.has('Vencido');
-  $('#fPend').classList.toggle('on', !!esPend);
-  $('#fVenc').classList.toggle('on', !!esVenc); $('#fVenc').classList.toggle('venc', !!esVenc); }
-
+function estadoFiltrado(vals){ const c = filtros.get(IDX_ESTADO); return !!(c && c.size===vals.length && vals.every(v => c.has(v))); }
+function toggleVida(){ filtroVida = !filtroVida; render(); }
 document.addEventListener('mousedown', e => { if (menuAbierto && !menuAbierto.contains(e.target) && !e.target.classList.contains('filtro-btn') && e.target.id!=='btnCols') cerrarMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ cerrarMenu(); cerrarDrawer(); } });
 $('.table-wrap').addEventListener('scroll', cerrarMenu);
@@ -609,11 +631,9 @@ $('#scrim').addEventListener('click', cerrarDrawer);
 $('#cerrarDrawer').addEventListener('click', cerrarDrawer);
 $('#dCerrar2').addEventListener('click', cerrarDrawer);
 $('#busqueda').addEventListener('input', render);
-$('#fPend').addEventListener('click', () => toggleEstado(['Pendiente','Vencido']));
-$('#fVenc').addEventListener('click', () => toggleEstado(['Vencido']));
 $('#btnCols').addEventListener('click', e => { e.stopPropagation(); abrirColumnas(e.currentTarget); });
 $('#btnDensidad').addEventListener('click', () => document.body.classList.toggle('compact'));
-$('#limpiar').addEventListener('click', () => { filtros.clear(); $('#busqueda').value=''; ordenCol=null; render(); });
+$('#limpiar').addEventListener('click', () => { filtros.clear(); filtroVida=false; $('#busqueda').value=''; ordenCol=null; render(); });
 
 function descargarNotas(){ const blob = new Blob([JSON.stringify({version:2, notas}, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'notas_equipos.json';
