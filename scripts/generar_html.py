@@ -103,6 +103,20 @@ def leer_programa(db: Path):
             for r in q]
 
 
+def leer_causales(db: Path):
+    """Lee la tabla `causales` (referencia de reprogramación). Devuelve [] si no existe."""
+    con = sqlite3.connect(db)
+    try:
+        q = con.execute(
+            "SELECT codigo, descripcion, plazo_dias, regla FROM causales ORDER BY codigo"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        con.close()
+        return []
+    con.close()
+    return [{"cod": r[0], "desc": r[1] or "", "plazo": r[2], "regla": r[3] or ""} for r in q]
+
+
 PLANTILLA = r"""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -372,6 +386,29 @@ PLANTILLA = r"""<!DOCTYPE html>
   .help h3{ margin:0 0 14px; font-size:15px; }
   .help dl{ display:grid; grid-template-columns:auto 1fr; gap:9px 14px; margin:0; }
   .help dt{ text-align:right; } .help dd{ margin:0; color:var(--muted); }
+  /* Leyenda de resultado y causales */
+  .btn.warn{ background:var(--amber-bg); border-color:#f59e0b; color:#92400e; }
+  .btn.warn:hover{ background:#fde68a; }
+  body[data-theme="oscuro"] .btn.warn{ background:#39290f; color:#f4cf86; border-color:#a16207; }
+  .help.ley{ position:relative; width:min(760px,94vw); max-height:88vh; overflow:auto; text-align:left; padding:24px 26px; }
+  .help.ley .x{ position:absolute; top:12px; right:12px; border:0; background:transparent; color:var(--muted); font-size:18px; cursor:pointer; line-height:1; }
+  .help.ley .x:hover{ color:var(--text); }
+  .ley h3{ margin:0 0 4px; font-size:16px; }
+  .ley h4{ margin:20px 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--primary); }
+  .ley p.sub{ margin:0 0 6px; color:var(--muted); font-size:12.5px; }
+  .ley-tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .ley-tbl th, .ley-tbl td{ text-align:left; padding:6px 9px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .ley-tbl th{ color:var(--muted); font-weight:600; white-space:nowrap; }
+  .ley-tbl td.cod{ font-weight:700; white-space:nowrap; }
+  .ley-row{ cursor:pointer; }
+  .ley-row:hover{ background:var(--row-hover); }
+  .ley-cnt{ display:inline-block; min-width:20px; padding:1px 8px; border-radius:999px; background:var(--amber-bg); color:#92400e; font-weight:700; font-size:11px; }
+  body[data-theme="oscuro"] .ley-cnt{ background:#39290f; color:#f4cf86; }
+  .ley-cnt.cero{ background:var(--surface-2); color:var(--muted); }
+  .ley-go{ color:var(--primary); font-weight:600; white-space:nowrap; }
+  .ley-rule{ background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:10px 12px; margin-top:8px; font-size:12.5px; }
+  .ley-rule b{ color:var(--text); }
+  .ley-cta{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
   kbd{ background:var(--surface-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:6px; padding:2px 7px; font-family:ui-monospace,monospace; font-size:12px; color:var(--text); }
 
   @media (max-width:720px){ .appbar .sub{ display:none; } .search input{ min-width:150px; } }
@@ -418,6 +455,8 @@ PLANTILLA = r"""<!DOCTYPE html>
   <div class="prog-bar">
     <button class="btn" id="progBack">← Equipos</button>
     <strong>Programa de mantención</strong>
+    <button class="btn sm" id="progLeyenda" title="Leyenda de resultado y causales">📖 Leyenda</button>
+    <button class="btn sm warn" id="progPend30" hidden></button>
     <button class="btn sm" id="progClear" hidden>✕ Limpiar filtros</button>
     <span class="prog-info" id="progInfo"></span>
   </div>
@@ -472,6 +511,13 @@ PLANTILLA = r"""<!DOCTYPE html>
   </div>
 </div>
 
+<div class="help-scrim" id="leyenda">
+  <div class="help ley" role="dialog" aria-modal="true" aria-label="Leyenda de resultado y causales">
+    <button class="x" id="leyCerrar" aria-label="Cerrar">✕</button>
+    <div id="leyBody"></div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -479,6 +525,10 @@ const HEADERS = __HEADERS__;
 const ROWS = __ROWS__;
 const DB_REGISTROS = __DBREG__;
 const PROGRAMA = __PROGRAMA__;
+const CAUSALES = __CAUSALES__;
+const CAUSAL_MAP = Object.fromEntries(CAUSALES.map(c => [c.cod, c]));
+const CODES_30 = ['C1','C5','C6','C7','C8'];   // reprogramar ≤30 días
+const CODES_REAL = ['C2','C3','C4'];           // sin nueva fecha (mes real)
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const NUMERICAS = new Set(__NUMERICAS__);
 const NB = __NB__;
@@ -730,7 +780,7 @@ function resLabel(r){ const raw = (r||'').toString().trim(), s = raw.toUpperCase
 function etiquetaResultado(r){ const s = (r||'').toString().trim().toUpperCase(), L = resLabel(r);
   if (s==='') return '<span class="badge pend">Pendiente</span>';
   if (s==='SI'||s==='SI-RA') return `<span class="badge ok" title="${s==='SI'?'Mantención Preventiva Realizada':'Mantención de Año Anterior Realizada'}">${L}</span>`;
-  if (/^C[1-8]$/.test(s)) return `<span class="badge repro" title="Mantención Preventiva Reprogramada (ver causales)">${L}</span>`;
+  if (/^C[1-8]$/.test(s)) return `<span class="badge repro" title="${causalTip(s)}">${L}</span>`;
   if (s==='FS'||s==='NO') return `<span class="badge venc" title="${s==='FS'?'Fuera de Servicio':'No Realizada'}">${L}</span>`;
   if (s==='NU') return `<span class="badge nu" title="No Ubicable">${L}</span>`;
   if (s==='BAJA') return '<span class="badge" title="Equipo Dado de Baja">Baja</span>';
@@ -800,6 +850,42 @@ function abrirDropdownProg(k, btn){
 function getProg(k,m){ return (notas[k] && notas[k].prog && notas[k].prog[m]) || {}; }
 function setProg(k,m,fe){ if(!notas[k]) notas[k]={}; if(!notas[k].prog) notas[k].prog={};
   const ua = ahora(); notas[k].prog[m] = {fe: fe||'', ua}; try{ localStorage.setItem(LS_KEY, JSON.stringify(notas)); }catch(e){} marcarDirty(true); return ua; }
+/* ----- Leyenda de resultado y causales ----- */
+function causalTip(code){ const c = CAUSAL_MAP[code]; if (!c) return 'Reprogramada (ver causales)';
+  return `${code}: ${c.desc} · ${c.plazo===30 ? 'reprogramar ≤30 días' : 'se registra en el mes real'}`; }
+function contarRes(codes){ const S = new Set(codes); let n=0;
+  for (const x of PROGRAMA){ if (S.has((x.r||'').toString().trim().toUpperCase())) n++; } return n; }
+function filtrarRes(codes){ vista='programa'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){}
+  progFiltros.set('res', new Set(codes.map(c => resLabel(c)))); cerrarLeyenda(); render(); }
+function actualizarChip30(){ const n = contarRes(CODES_30), b = $('#progPend30');
+  b.hidden = n===0; b.textContent = `⏱ ${n} por reprogramar (≤30 d)`;
+  b.title = 'Reprogramaciones por causal C1, C5, C6, C7, C8 — clic para ver esos equipos'; }
+function toggleLeyenda(){ const s = $('#leyenda'); if (s.classList.contains('on')){ cerrarLeyenda(); return; } renderLeyenda(); s.classList.add('on'); }
+function cerrarLeyenda(){ $('#leyenda').classList.remove('on'); }
+function renderLeyenda(){
+  const RES = [['Si','Mantención Preventiva Realizada'],['C1 – C8','Mantención Preventiva Reprogramada (ver causales)'],
+    ['Si-RA','Mantención de Año Anterior Realizada'],['FS','Fuera de Servicio'],['No','No Realizada'],
+    ['NU','No Ubicable'],['Baja','Equipo Dado de Baja'],['(vacío)','Pendiente']];
+  let h = '<h3>📖 Leyenda — Resultado y causales</h3>';
+  h += '<h4>Resultado</h4><table class="ley-tbl"><thead><tr><th>Código</th><th>Significado</th></tr></thead><tbody>';
+  for (const [c,d] of RES) h += `<tr><td class="cod">${c}</td><td>${d}</td></tr>`;
+  h += '</tbody></table>';
+  h += '<h4>Causales de reprogramación</h4><p class="sub">Clic en una causal para ver sus equipos en la tabla.</p>';
+  h += '<table class="ley-tbl"><thead><tr><th>Cód.</th><th>Descripción</th><th>Regla</th><th>N°</th></tr></thead><tbody>';
+  for (const c of CAUSALES){ const n = contarRes([c.cod]);
+    const regla = c.plazo===30 ? 'Reprogramar ≤30 días' : 'Mes real de ejecución';
+    h += `<tr class="ley-row" data-cod="${c.cod}"><td class="cod">${c.cod}</td><td>${c.desc}</td>`
+       + `<td>${regla}</td><td><span class="ley-cnt${n?'':' cero'}">${n}</span></td></tr>`; }
+  h += '</tbody></table>';
+  h += '<h4>Reglas de reprogramación</h4>';
+  h += '<div class="ley-rule"><b>C2, C3, C4</b> → No se fija nueva fecha; la mantención se registra en el <b>mes real de ejecución</b> una vez que el equipo se reintegra.</div>';
+  h += '<div class="ley-rule"><b>C1, C5, C6, C7, C8</b> → Debe <b>reprogramarse dentro de los 30 días</b> siguientes.</div>';
+  const n30 = contarRes(CODES_30);
+  h += `<div class="ley-cta"><button class="btn warn" id="leyVer30">⏱ Ver ${n30} por reprogramar (≤30 días)</button><span class="prog-info">Causales C1, C5, C6, C7, C8</span></div>`;
+  $('#leyBody').innerHTML = h;
+  $('#leyBody').querySelectorAll('.ley-row').forEach(r => r.onclick = () => filtrarRes([r.dataset.cod]));
+  $('#leyVer30').onclick = () => filtrarRes(CODES_30);
+}
 function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase();
   return PROGRAMA.filter(x => {
     for (const [k,sel] of progFiltros){ if (!sel.has(colKeyVal(x,k))) return false; }
@@ -807,6 +893,7 @@ function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase()
     return true; }); }
 function renderPrograma(){
   buildProgHead();
+  actualizarChip30();
   $('#progClear').hidden = progFiltros.size === 0;
   const vis = programaVisibles();
   let real=0, pend=0; for (const x of PROGRAMA){ const e = resultadoEstado(x.r); if (e==='realizado') real++; else if (e==='pendiente') pend++; }
@@ -1022,7 +1109,7 @@ function estadoFiltrado(vals){ const c = filtros.get(IDX_ESTADO); return !!(c &&
 function toggleVida(){ filtroVida = !filtroVida; render(); }
 document.addEventListener('mousedown', e => { if (menuAbierto && !menuAbierto.contains(e.target) && !e.target.classList.contains('filtro-btn') && e.target.id!=='btnCols') cerrarMenu(); });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ cerrarMenu(); cerrarDrawer(); cerrarAyuda(); return; }
+  if (e.key === 'Escape'){ cerrarMenu(); cerrarDrawer(); cerrarAyuda(); cerrarLeyenda(); return; }
   const t = e.target, tag = (t.tagName||'').toLowerCase();
   if (tag==='input' || tag==='textarea' || t.isContentEditable) return;
   if (e.key === '?' || (e.key === '/' && e.shiftKey)){ e.preventDefault(); toggleAyuda(); }
@@ -1049,6 +1136,10 @@ $('#progBody').addEventListener('change', e => { const inp = e.target.closest('i
   const cell = inp.closest('tr').querySelector('.ua'); if (cell) cell.textContent = inp.value ? ua : '—'; });
 $('#btnAyuda').addEventListener('click', toggleAyuda);
 $('#help').addEventListener('click', e => { if (e.target.id === 'help') cerrarAyuda(); });
+$('#progLeyenda').addEventListener('click', toggleLeyenda);
+$('#progPend30').addEventListener('click', () => filtrarRes(CODES_30));
+$('#leyCerrar').addEventListener('click', cerrarLeyenda);
+$('#leyenda').addEventListener('click', e => { if (e.target.id === 'leyenda') cerrarLeyenda(); });
 $('#scrim').addEventListener('click', cerrarDrawer);
 $('#cerrarDrawer').addEventListener('click', cerrarDrawer);
 $('#dCerrar2').addEventListener('click', cerrarDrawer);
@@ -1099,10 +1190,12 @@ def main():
 
     rows, db_reg = leer_datos(args.db)
     programa = leer_programa(args.db)
+    causales = leer_causales(args.db)
     headers = [h for _, h in COLUMNAS_ROW] + COLUMNAS_VIRT
     nb = len(COLUMNAS_BASE)
     html = (PLANTILLA
             .replace("__PROGRAMA__", json.dumps(programa, ensure_ascii=False, separators=(",", ":")))
+            .replace("__CAUSALES__", json.dumps(causales, ensure_ascii=False, separators=(",", ":")))
             .replace("__HEADERS__", json.dumps(headers, ensure_ascii=False))
             .replace("__ROWS__", json.dumps(rows, ensure_ascii=False, separators=(",", ":")))
             .replace("__DBREG__", json.dumps(db_reg, ensure_ascii=False, separators=(",", ":")))

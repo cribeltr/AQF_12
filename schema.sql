@@ -127,42 +127,65 @@ CREATE TABLE mantenciones (
 CREATE INDEX ix_mant_clave ON mantenciones (clave);
 CREATE UNIQUE INDEX ux_mant_clave_mes ON mantenciones (clave, mes);
 
--- Vista legible: mes con nombre y programa/resultado decodificados.
+-- ===== Causales de reprogramación (referencia fija, provista por SEC) =====
+--  plazo_dias = 30  -> debe reprogramarse dentro de 30 días.
+--  plazo_dias = NULL -> sin nueva fecha; se registra en el mes real de ejecución
+--                       una vez que el equipo se reintegra.
+DROP TABLE IF EXISTS causales;
+CREATE TABLE causales (
+    codigo      TEXT PRIMARY KEY,   -- C1 … C8
+    descripcion TEXT,
+    plazo_dias  INTEGER,
+    regla       TEXT
+);
+INSERT INTO causales (codigo, descripcion, plazo_dias, regla) VALUES
+ ('C1','Imposibilidad de desocupar el equipo del paciente por indicación clínica',30,'Reprogramar dentro de 30 días'),
+ ('C2','Equipo en servicio técnico',NULL,'Sin nueva fecha; se registra en el mes real de ejecución al reintegrarse'),
+ ('C3','Equipo no operativo, a la espera de repuestos o accesorios',NULL,'Sin nueva fecha; se registra en el mes real de ejecución al reintegrarse'),
+ ('C4','Equipo en préstamo a otro hospital o institución',NULL,'Sin nueva fecha; se registra en el mes real de ejecución al reintegrarse'),
+ ('C5','No disponibilidad de horas hombre del funcionario SEC por alta carga laboral',30,'Reprogramar dentro de 30 días'),
+ ('C6','No disponibilidad de horas hombre del servicio técnico externo',30,'Reprogramar dentro de 30 días'),
+ ('C7','Ausencia justificada del funcionario SEC superior a 15 días',30,'Reprogramar dentro de 30 días'),
+ ('C8','Contingencia hospitalaria',30,'Reprogramar dentro de 30 días');
+
+-- Vista legible: mes con nombre, programa/resultado decodificados y la causal.
 CREATE VIEW vista_programa AS
 SELECT
-    id_planilla  AS "ID",
-    n_carpeta    AS "N° Carpeta",
-    n_inventario AS "N° Inventario",
-    equipo       AS "Equipo",
-    servicio     AS "Servicio",
-    ubicacion    AS "Ubicación",
-    marca        AS "Marca",
-    modelo       AS "Modelo",
-    serie        AS "Serie",
-    CASE mes WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+    m.id_planilla  AS "ID",
+    m.n_carpeta    AS "N° Carpeta",
+    m.n_inventario AS "N° Inventario",
+    m.equipo       AS "Equipo",
+    m.servicio     AS "Servicio",
+    m.ubicacion    AS "Ubicación",
+    m.marca        AS "Marca",
+    m.modelo       AS "Modelo",
+    m.serie        AS "Serie",
+    CASE m.mes WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
              WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
              WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
              WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
-             ELSE mes END                                          AS "Mes",
-    CASE upper(programa)
+             ELSE m.mes END                                        AS "Mes",
+    CASE upper(m.programa)
          WHEN 'X'  THEN 'Programada'
          WHEN 'R'  THEN 'Reprogramada'
          WHEN 'RA' THEN 'Reprogramada (año anterior)'
          WHEN 'PM' THEN 'Puesta en marcha'
          WHEN 'BAJA' THEN 'Baja'
-         ELSE programa END                                        AS "Programa",
+         ELSE m.programa END                                      AS "Programa",
     CASE
-         WHEN resultado IS NULL OR resultado = '' THEN 'Pendiente'
-         WHEN upper(resultado) = 'SI'    THEN 'Realizada'
-         WHEN upper(resultado) = 'SI-RA' THEN 'Realizada (año anterior)'
-         WHEN upper(resultado) IN ('C1','C2','C3','C4','C5','C6','C7','C8')
-              THEN 'Reprogramada (' || resultado || ')'
-         WHEN upper(resultado) = 'FS'   THEN 'Fuera de servicio'
-         WHEN upper(resultado) = 'NO'   THEN 'No realizada'
-         WHEN upper(resultado) = 'NU'   THEN 'No ubicable'
-         WHEN upper(resultado) = 'BAJA' THEN 'Baja'
-         ELSE resultado END                                       AS "Resultado",
-    fecha_ejecucion      AS "Fecha de ejecución",
-    ultima_actualizacion AS "Última actualización"
-FROM mantenciones
-ORDER BY clave, mes;
+         WHEN m.resultado IS NULL OR m.resultado = '' THEN 'Pendiente'
+         WHEN upper(m.resultado) = 'SI'    THEN 'Realizada'
+         WHEN upper(m.resultado) = 'SI-RA' THEN 'Realizada (año anterior)'
+         WHEN upper(m.resultado) IN ('C1','C2','C3','C4','C5','C6','C7','C8')
+              THEN 'Reprogramada (' || m.resultado || ')'
+         WHEN upper(m.resultado) = 'FS'   THEN 'Fuera de servicio'
+         WHEN upper(m.resultado) = 'NO'   THEN 'No realizada'
+         WHEN upper(m.resultado) = 'NU'   THEN 'No ubicable'
+         WHEN upper(m.resultado) = 'BAJA' THEN 'Baja'
+         ELSE m.resultado END                                     AS "Resultado",
+    c.descripcion        AS "Causal",
+    m.fecha_ejecucion      AS "Fecha de ejecución",
+    m.ultima_actualizacion AS "Última actualización"
+FROM mantenciones m
+LEFT JOIN causales c ON upper(m.resultado) = c.codigo
+ORDER BY m.clave, m.mes;

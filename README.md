@@ -191,6 +191,17 @@ encabezado filtrado se resalta y **✕ Limpiar filtros** los quita todos. La
 búsqueda global también aplica. La fecha de ejecución se guarda igual que las
 notas (localStorage + respaldo `notas_equipos.json`).
 
+**📖 Leyenda y causales**: el botón **Leyenda** abre una ficha con el significado
+de cada Resultado y la tabla de **causales de reprogramación** (C1–C8) con sus
+descripciones, la regla aplicable y cuántas mantenciones tiene cada una. Reglas:
+
+- **C2, C3, C4** → sin nueva fecha; se registran en el **mes real de ejecución**.
+- **C1, C5, C6, C7, C8** → deben **reprogramarse dentro de 30 días**.
+
+El chip **⏱ N por reprogramar (≤30 d)** de la barra (y cada causal de la leyenda)
+es **clicable**: filtra la tabla a esos equipos. En la base, la tabla `causales`
+y la columna **Causal** de `vista_programa` exponen lo mismo para SQL.
+
 **En la base de datos**: al importar se crea la tabla `mantenciones` (una fila
 por equipo y mes) y la vista SQL **`vista_programa`** con esas columnas ya
 legibles. La interfaz lee el programa desde esa tabla (fuente única). Para
