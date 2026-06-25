@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# SQLite (archivos temporales del motor; la base equipos.db SÍ se versiona)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Archivos generados por el usuario desde la tabla HTML
+notas_equipos.json
+equipos_filtrado.csv
+
+# Sistema / editores
+.DS_Store
+.idea/
+.vscode/
