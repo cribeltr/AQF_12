@@ -123,8 +123,10 @@ servidor ni internet) para explorar y anotar los equipos:
   vida útil y de estado de mantención; cada barra/segmento filtra al hacer clic.
 - **Vista de tarjetas** (▤) además de la tabla, para escanear los equipos.
 - **Modo oscuro** (🌙) con interruptor, recordado entre sesiones.
+- **Vista Programa de mantención** (📅, ver abajo): una fila por equipo y mes
+  programado, con la fecha de ejecución editable.
 - **Atajos de teclado**: `/` buscar · `t` tabla/tarjetas · `d` resumen ·
-  `o` claro/oscuro · `?` ayuda · `Esc` cerrar.
+  `p` programa · `o` claro/oscuro · `?` ayuda · `Esc` cerrar.
 - Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.
 
 Para regenerarlo a partir de la base:
@@ -154,6 +156,30 @@ vencimiento** (recordatorio). La tabla deriva de ahí:
   color.
 - Filtra al instante con *⏳ Pendientes* / *⚠ Vencidos* y revisa los contadores
   de la barra de estadísticas.
+
+### Programa de mantención (vista)
+
+El botón **📅 Programa MP** (o la tecla `p`) abre una vista con el programa de
+mantención del año, leído de la hoja `Registro_MP-2026` del Excel. Cada fila es
+una mantención (equipo × mes programado) con las columnas:
+
+| Columna | Origen |
+|---------|--------|
+| Equipo, Serie, Servicio | identificación del equipo |
+| **Mes** | mes del programa |
+| **Programa** | `X` = Programado (también `R` = Reprogramado) |
+| **Resultado** | `Si` = Realizado · vacío = Pendiente · `C#`/`R` = Reprogramado · `No` · `Baja` |
+| **Fecha de ejecución** | **editable**, se completa al ejecutar la mantención |
+| **Última actualización** | se pone **sola** cada vez que editas la fecha |
+
+Se puede filtrar por **mes** y por **resultado**, y la búsqueda global también
+aplica. La fecha de ejecución se guarda igual que las notas (localStorage +
+respaldo `notas_equipos.json`). Esta vista vive **solo en el HTML**: no agrega
+tablas ni vistas a `equipos.db`. Para regenerarla:
+
+```bash
+python scripts/generar_html.py     # lee equipos.db y data/Programacion_MP_2026.xlsm
+```
 
 ### Escribir notas y observaciones
 

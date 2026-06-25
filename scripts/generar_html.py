@@ -28,8 +28,11 @@ import json
 import sqlite3
 from pathlib import Path
 
+import openpyxl
+
 RAIZ = Path(__file__).resolve().parent.parent
 DB_POR_DEFECTO = RAIZ / "equipos.db"
+EXCEL_POR_DEFECTO = RAIZ / "data" / "Programacion_MP_2026.xlsm"
 SALIDA_POR_DEFECTO = RAIZ / "equipos_filtrable.html"
 
 # Columnas de SOLO LECTURA (orden y encabezados exactos de la planilla).
@@ -77,6 +80,46 @@ def leer_datos(db: Path):
             if lst:
                 db_reg[clave(base[10], base[2], base[0])] = lst
     return rows, db_reg
+
+
+def _texto(v):
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def leer_programa(excel: Path, hoja: str = "Registro_MP-2026"):
+    """Lee la hoja de registro y devuelve una fila por (equipo × mes) programado.
+
+    Cada elemento: {k: clave equipo, id, eq, se(serie), sv(servicio), m: 1-12,
+    p: valor Programado (X/R/...), r: valor Resultado (Si/C#/No/Baja/...)}.
+    Solo se incluyen los meses con algún valor de Programa o Resultado.
+    """
+    if not Path(excel).exists():
+        return []
+    wb = openpyxl.load_workbook(excel, data_only=True, read_only=True)
+    if hoja not in wb.sheetnames:
+        return []
+    ws = wb[hoja]
+    prog = []
+    for r in ws.iter_rows(min_row=8, values_only=True):
+        if len(r) < 16:
+            continue
+        idv, inv, eq, sv, se = _texto(r[1]), _texto(r[3]), _texto(r[4]), _texto(r[5]), _texto(r[11])
+        if not (eq or se or inv):
+            continue
+        key = se or inv or ("#" + idv)
+        for m in range(12):
+            pi, ri = 19 + 2 * m, 20 + 2 * m
+            p = _texto(r[pi]) if len(r) > pi else ""
+            res = _texto(r[ri]) if len(r) > ri else ""
+            if p or res:
+                prog.append({"k": key, "id": idv, "eq": eq, "se": se, "sv": sv, "m": m + 1, "p": p, "r": res})
+    return prog
 
 
 PLANTILLA = r"""<!DOCTYPE html>
@@ -309,6 +352,29 @@ PLANTILLA = r"""<!DOCTYPE html>
   .eqcard .meta{ color:var(--muted); font-size:12px; margin-bottom:7px; }
   .eqcard .row{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; }
 
+  /* ---------- Vista Programa de mantención ---------- */
+  .badge.repro{ background:#e0e7ff; color:#3730a3; }
+  body[data-theme="oscuro"] .badge.repro{ background:#1e2553; color:#aab4f5; }
+  .programa{ display:none; flex-direction:column; flex:1; overflow:hidden; }
+  .programa.on{ display:flex; }
+  .prog-bar{ display:flex; gap:10px; align-items:center; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--surface); flex-wrap:wrap; }
+  .prog-bar strong{ font-size:13px; }
+  .prog-sel{ padding:7px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); }
+  .prog-sel:focus{ outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-100); }
+  .prog-info{ margin-left:auto; color:var(--muted); font-size:12px; }
+  .prog-info b{ color:var(--text); }
+  .prog-table-wrap{ overflow:auto; flex:1; }
+  .prog-table{ border-collapse:separate; border-spacing:0; width:100%; }
+  .prog-table thead th{ position:sticky; top:0; z-index:5; background:#0f766e; color:#fff; padding:9px 11px; text-align:left; white-space:nowrap; border-right:1px solid rgba(255,255,255,.14); font-size:12px; }
+  .prog-table td{ border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:6px 11px; white-space:nowrap; font-size:12.5px; }
+  .prog-table tbody tr:nth-child(even) td{ background:var(--row-alt); }
+  .prog-table tbody tr:hover td{ background:var(--row-hover); }
+  .prog-table .eqn{ font-weight:600; }
+  .prog-table input.fe{ padding:4px 7px; border:1px solid var(--edit-border); border-radius:6px; background:var(--edit); font:inherit; color:var(--text); }
+  .prog-table input.fe:focus{ outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-100); }
+  .prog-table .ua{ color:var(--muted); font-variant-numeric:tabular-nums; }
+  .prog-empty{ padding:40px 20px; text-align:center; color:var(--muted); }
+
   /* ---------- Ayuda (atajos) ---------- */
   .help-scrim{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; place-items:center; z-index:1300; }
   .help-scrim.on{ display:grid; }
@@ -336,6 +402,7 @@ PLANTILLA = r"""<!DOCTYPE html>
     <input type="search" id="busqueda" placeholder="Buscar en todas las columnas…">
   </div>
   <button class="btn" id="btnDash">📊 Resumen</button>
+  <button class="btn" id="btnPrograma">📅 Programa MP</button>
   <button class="btn" id="btnVista">▤ Tarjetas</button>
   <button class="btn" id="btnCols">▦ Columnas</button>
   <button class="btn" id="btnDensidad">≣ Densidad</button>
@@ -350,12 +417,38 @@ PLANTILLA = r"""<!DOCTYPE html>
   <input type="file" id="archivo" accept=".json,application/json" style="display:none">
 </div>
 
-<div class="substrip">
+<div class="substrip" id="substrip">
   <div class="stats" id="stats"></div>
   <div class="chips" id="chips"></div>
 </div>
 
 <div class="dashboard" id="dashboard"></div>
+
+<div class="programa" id="programa">
+  <div class="prog-bar">
+    <button class="btn" id="progBack">← Equipos</button>
+    <strong>Programa de mantención</strong>
+    <select class="prog-sel" id="progMes"></select>
+    <select class="prog-sel" id="progRes">
+      <option value="">Todos los resultados</option>
+      <option value="realizado">Realizado</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="reprogramado">Reprogramado</option>
+      <option value="no">No realizado</option>
+      <option value="baja">Baja</option>
+    </select>
+    <span class="prog-info" id="progInfo"></span>
+  </div>
+  <div class="prog-table-wrap">
+    <table class="prog-table">
+      <thead><tr>
+        <th>Equipo</th><th>Serie</th><th>Servicio</th><th>Mes</th>
+        <th>Programa</th><th>Resultado</th><th>Fecha de ejecución</th><th>Última actualización</th>
+      </tr></thead>
+      <tbody id="progBody"></tbody>
+    </table>
+  </div>
+</div>
 
 <div class="table-wrap" id="table-wrap">
   <table><thead><tr id="encabezado"></tr></thead><tbody id="cuerpo"></tbody></table>
@@ -392,6 +485,7 @@ PLANTILLA = r"""<!DOCTYPE html>
       <dt><kbd>/</kbd></dt><dd>Buscar</dd>
       <dt><kbd>t</kbd></dt><dd>Cambiar entre Tabla y Tarjetas</dd>
       <dt><kbd>d</kbd></dt><dd>Mostrar/ocultar el panel Resumen</dd>
+      <dt><kbd>p</kbd></dt><dd>Vista Programa de mantención</dd>
       <dt><kbd>o</kbd></dt><dd>Modo claro / oscuro</dd>
       <dt><kbd>?</kbd></dt><dd>Mostrar esta ayuda</dd>
       <dt><kbd>Esc</kbd></dt><dd>Cerrar ficha, menús y ayuda</dd>
@@ -405,6 +499,8 @@ PLANTILLA = r"""<!DOCTYPE html>
 const HEADERS = __HEADERS__;
 const ROWS = __ROWS__;
 const DB_REGISTROS = __DBREG__;
+const PROGRAMA = __PROGRAMA__;
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const NUMERICAS = new Set(__NUMERICAS__);
 const NB = __NB__;
 const IDX_OBS = __IDX_OBS__, IDX_NOTAS = __IDX_NOTAS__, IDX_ESTADO = __IDX_ESTADO__, IDX_VENCE = __IDX_VENCE__;
@@ -424,6 +520,7 @@ let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow 
 const filtros = new Map();
 const LS_THEME = 'aqf12_theme_v1', LS_VIEW = 'aqf12_view_v1';
 let vista = 'tabla', dashAbierto = false, tema = 'claro';
+let progMes = '', progRes = '';
 try { vista = localStorage.getItem(LS_VIEW) || 'tabla'; } catch(e){}
 try { tema = localStorage.getItem(LS_THEME) || 'claro'; } catch(e){}
 
@@ -504,11 +601,20 @@ function celdaBadge(ci, s){
   return null;
 }
 
-function render(){
-  const vis = indicesVisibles();
-  if (vista === 'tarjetas') renderTarjetas(vis); else renderTabla(vis);
+function mostrarVista(){
+  const prog = vista === 'programa';
   $('#table-wrap').style.display = (vista === 'tabla') ? '' : 'none';
   $('#cards').classList.toggle('on', vista === 'tarjetas');
+  $('#programa').classList.toggle('on', prog);
+  $('#substrip').style.display = prog ? 'none' : '';
+  $('#btnPrograma').classList.toggle('on', prog);
+  if (prog){ dashAbierto = false; $('#dashboard').classList.remove('on'); $('#btnDash').classList.remove('on'); }
+}
+function render(){
+  if (vista === 'programa'){ mostrarVista(); renderPrograma(); return; }
+  const vis = indicesVisibles();
+  if (vista === 'tarjetas') renderTarjetas(vis); else renderTabla(vis);
+  mostrarVista();
   renderStats(vis.length); renderChips();
   if (dashAbierto) renderDashboard();
   document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('activo', filtros.has(+b.dataset.col)));
@@ -606,10 +712,53 @@ function aplicarTema(){ document.body.setAttribute('data-theme', tema==='oscuro'
 function toggleTema(){ tema = tema==='oscuro'?'claro':'oscuro'; try{ localStorage.setItem(LS_THEME, tema); }catch(e){} aplicarTema(); }
 function toggleVista(){ vista = vista==='tabla'?'tarjetas':'tabla'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){}
   $('#btnVista').textContent = vista==='tabla'?'▤ Tarjetas':'▦ Tabla'; cerrarMenu(); render(); }
-function toggleDash(){ dashAbierto = !dashAbierto; $('#dashboard').classList.toggle('on', dashAbierto);
+function toggleDash(){ if (vista==='programa'){ vista='tabla'; render(); }
+  dashAbierto = !dashAbierto; $('#dashboard').classList.toggle('on', dashAbierto);
   $('#btnDash').classList.toggle('on', dashAbierto); if (dashAbierto) renderDashboard(); }
 function toggleAyuda(){ $('#help').classList.toggle('on'); }
 function cerrarAyuda(){ $('#help').classList.remove('on'); }
+
+/* ---------- Vista Programa de mantención ---------- */
+function togglePrograma(){ vista = (vista==='programa') ? 'tabla' : 'programa';
+  try{ localStorage.setItem(LS_VIEW, vista); }catch(e){} render(); }
+function ahora(){ const d = new Date(), p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function resultadoEstado(r){ const s = (r||'').toString().trim().toUpperCase();
+  if (s==='SI') return 'realizado'; if (s==='NO') return 'no'; if (s==='BAJA') return 'baja';
+  if (s==='') return 'pendiente'; if (/^C\d$/.test(s) || s==='R' || s==='RA') return 'reprogramado'; return 'otro'; }
+function etiquetaResultado(r){ const e = resultadoEstado(r), raw = (r||'').toString().trim();
+  if (e==='realizado') return '<span class="badge ok">Realizado</span>';
+  if (e==='pendiente') return '<span class="badge pend">Pendiente</span>';
+  if (e==='no') return '<span class="badge venc">No realizado</span>';
+  if (e==='baja') return '<span class="badge">Baja</span>';
+  if (e==='reprogramado'){ const x = (raw && !['R','RA'].includes(raw.toUpperCase())) ? ` (${raw})` : ''; return `<span class="badge repro">Reprogramado${x}</span>`; }
+  return `<span class="badge">${raw||'—'}</span>`; }
+function etiquetaPrograma(p){ const s = (p||'').toString().trim().toUpperCase();
+  if (s==='X') return 'Programado'; if (s==='R') return 'Reprogramado'; return (p||'').toString().trim() || '—'; }
+function getProg(k,m){ return (notas[k] && notas[k].prog && notas[k].prog[m]) || {}; }
+function setProg(k,m,fe){ if(!notas[k]) notas[k]={}; if(!notas[k].prog) notas[k].prog={};
+  const ua = ahora(); notas[k].prog[m] = {fe: fe||'', ua}; try{ localStorage.setItem(LS_KEY, JSON.stringify(notas)); }catch(e){} marcarDirty(true); return ua; }
+function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase();
+  return PROGRAMA.filter(x => {
+    if (progMes && x.m !== +progMes) return false;
+    if (progRes && resultadoEstado(x.r) !== progRes) return false;
+    if (q && ![x.eq,x.se,x.sv,MESES[x.m-1],x.p,x.r].some(v => norm(v).toLowerCase().includes(q))) return false;
+    return true; }); }
+function renderPrograma(){
+  const vis = programaVisibles();
+  let real=0, pend=0; for (const x of PROGRAMA){ const e = resultadoEstado(x.r); if (e==='realizado') real++; else if (e==='pendiente') pend++; }
+  $('#progInfo').innerHTML = `<b>${PROGRAMA.length.toLocaleString('es')}</b> mantenciones · <b>${real.toLocaleString('es')}</b> realizadas · <b>${pend.toLocaleString('es')}</b> pendientes · <b>${vis.length.toLocaleString('es')}</b> en pantalla`;
+  const body = $('#progBody');
+  if (!vis.length){ body.innerHTML = '<tr><td colspan="8" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
+  const frag = document.createDocumentFragment();
+  for (const x of vis){ const pe = getProg(x.k, x.m); const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.se)||'—'}</td><td>${norm(x.sv)||'—'}</td>
+      <td>${MESES[x.m-1]}</td><td>${etiquetaPrograma(x.p)}</td><td>${etiquetaResultado(x.r)}</td>
+      <td><input type="date" class="fe" data-k="${(x.k||'').replace(/"/g,'&quot;')}" data-m="${x.m}" value="${pe.fe||''}"></td>
+      <td class="ua">${pe.fe ? (pe.ua||'') : '—'}</td>`;
+    frag.appendChild(tr); }
+  body.replaceChildren(frag);
+}
 
 /* ---------- Panel Resumen ---------- */
 function resumenServicios(){ const m = new Map();
@@ -813,6 +962,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === '/'){ e.preventDefault(); $('#busqueda').focus(); }
   else if (e.key === 't'){ toggleVista(); }
   else if (e.key === 'd'){ toggleDash(); }
+  else if (e.key === 'p'){ togglePrograma(); }
   else if (e.key === 'o'){ toggleTema(); }
 });
 $('.table-wrap').addEventListener('scroll', cerrarMenu);
@@ -823,6 +973,13 @@ $('#cards').addEventListener('click', e => { const c = e.target.closest('.eqcard
 $('#btnTema').addEventListener('click', toggleTema);
 $('#btnVista').addEventListener('click', toggleVista);
 $('#btnDash').addEventListener('click', toggleDash);
+$('#btnPrograma').addEventListener('click', togglePrograma);
+$('#progBack').addEventListener('click', () => { vista='tabla'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){} render(); });
+$('#progMes').addEventListener('change', e => { progMes = e.target.value; renderPrograma(); });
+$('#progRes').addEventListener('change', e => { progRes = e.target.value; renderPrograma(); });
+$('#progBody').addEventListener('change', e => { const inp = e.target.closest('input.fe'); if (!inp) return;
+  const ua = setProg(inp.dataset.k, +inp.dataset.m, inp.value);
+  const cell = inp.closest('tr').querySelector('.ua'); if (cell) cell.textContent = inp.value ? ua : '—'; });
 $('#btnAyuda').addEventListener('click', toggleAyuda);
 $('#help').addEventListener('click', e => { if (e.target.id === 'help') cerrarAyuda(); });
 $('#scrim').addEventListener('click', cerrarDrawer);
@@ -859,6 +1016,7 @@ window.addEventListener('beforeunload', e => { if (dirty){ e.preventDefault(); e
 
 aplicarTema();
 $('#btnVista').textContent = vista==='tabla' ? '▤ Tarjetas' : '▦ Tabla';
+$('#progMes').innerHTML = '<option value="">Todos los meses</option>' + MESES.map((m,i) => `<option value="${i+1}">${m}</option>`).join('');
 construirEncabezado();
 render();
 </script>
@@ -870,13 +1028,17 @@ render();
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", type=Path, default=DB_POR_DEFECTO)
+    ap.add_argument("--excel", type=Path, default=EXCEL_POR_DEFECTO,
+                    help="Excel de origen para el programa de mantención (hoja Registro_MP-2026)")
     ap.add_argument("--salida", type=Path, default=SALIDA_POR_DEFECTO)
     args = ap.parse_args()
 
     rows, db_reg = leer_datos(args.db)
+    programa = leer_programa(args.excel)
     headers = [h for _, h in COLUMNAS_ROW] + COLUMNAS_VIRT
     nb = len(COLUMNAS_BASE)
     html = (PLANTILLA
+            .replace("__PROGRAMA__", json.dumps(programa, ensure_ascii=False, separators=(",", ":")))
             .replace("__HEADERS__", json.dumps(headers, ensure_ascii=False))
             .replace("__ROWS__", json.dumps(rows, ensure_ascii=False, separators=(",", ":")))
             .replace("__DBREG__", json.dumps(db_reg, ensure_ascii=False, separators=(",", ":")))
@@ -887,7 +1049,7 @@ def main():
             .replace("__IDX_ESTADO__", str(nb + 2))
             .replace("__IDX_VENCE__", str(nb + 3)))
     args.salida.write_text(html, encoding="utf-8")
-    print(f"Generado: {args.salida}  ({len(rows)} equipos, {len(html)//1024} KB)")
+    print(f"Generado: {args.salida}  ({len(rows)} equipos, {len(programa)} mantenciones, {len(html)//1024} KB)")
 
 
 if __name__ == "__main__":
