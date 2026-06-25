@@ -416,6 +416,14 @@ PLANTILLA = r"""<!DOCTYPE html>
     <button class="btn" id="progBack">← Equipos</button>
     <strong>Programa de mantención</strong>
     <select class="prog-sel" id="progMes"></select>
+    <select class="prog-sel" id="progProg">
+      <option value="">Todos los programas</option>
+      <option value="X">Programada</option>
+      <option value="R">Reprogramada</option>
+      <option value="RA">Reprog. año anterior</option>
+      <option value="PM">Puesta en marcha</option>
+      <option value="BAJA">Baja</option>
+    </select>
     <select class="prog-sel" id="progRes">
       <option value="">Todos los resultados</option>
       <option value="realizado">Realizada</option>
@@ -510,7 +518,7 @@ let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow 
 const filtros = new Map();
 const LS_THEME = 'aqf12_theme_v1', LS_VIEW = 'aqf12_view_v1';
 let vista = 'tabla', dashAbierto = false, tema = 'claro';
-let progMes = '', progRes = '';
+let progMes = '', progRes = '', progProg = '';
 try { vista = localStorage.getItem(LS_VIEW) || 'tabla'; } catch(e){}
 try { tema = localStorage.getItem(LS_THEME) || 'claro'; } catch(e){}
 
@@ -743,6 +751,7 @@ function setProg(k,m,fe){ if(!notas[k]) notas[k]={}; if(!notas[k].prog) notas[k]
 function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase();
   return PROGRAMA.filter(x => {
     if (progMes && x.m !== +progMes) return false;
+    if (progProg && (x.p||'').toString().trim().toUpperCase() !== progProg) return false;
     if (progRes && resultadoEstado(x.r) !== progRes) return false;
     if (q && ![x.id,x.inv,x.eq,x.sv,x.ub,x.ma,x.mo,x.se,MESES[x.m-1],x.p,x.r].some(v => norm(v).toLowerCase().includes(q))) return false;
     return true; }); }
@@ -984,6 +993,7 @@ $('#btnDash').addEventListener('click', toggleDash);
 $('#btnPrograma').addEventListener('click', togglePrograma);
 $('#progBack').addEventListener('click', () => { vista='tabla'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){} render(); });
 $('#progMes').addEventListener('change', e => { progMes = e.target.value; renderPrograma(); });
+$('#progProg').addEventListener('change', e => { progProg = e.target.value; renderPrograma(); });
 $('#progRes').addEventListener('change', e => { progRes = e.target.value; renderPrograma(); });
 $('#progBody').addEventListener('change', e => { const inp = e.target.closest('input.fe'); if (!inp) return;
   const ua = setProg(inp.dataset.k, +inp.dataset.m, inp.value);
