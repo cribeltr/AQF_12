@@ -253,6 +253,71 @@ PLANTILLA = r"""<!DOCTYPE html>
   .table-wrap::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
   :focus-visible{ outline:2px solid var(--primary); outline-offset:1px; border-radius:4px; }
   body.compact{ --rowpad:3px; font-size:12.5px; }
+
+  /* ---------- Modo oscuro ---------- */
+  body[data-theme="oscuro"]{
+    --bg:#0b1220; --surface:#101a2e; --surface-2:#16223a; --text:#e6edf6; --muted:#9fb0c6; --faint:#6b7c93;
+    --border:#26344f; --row-alt:#13203a; --row-hover:#1a2b48;
+    --edit:#23241a; --edit-border:#5a4d1d;
+    --primary-050:#0c2b27; --primary-100:#15534b;
+    --red:#f87171; --red-bg:#3a1620; --amber:#fbbf24; --amber-bg:#39290f; --green:#4ade80; --green-bg:#0f2e1f;
+    --shadow-md:0 8px 24px rgba(0,0,0,.55);
+  }
+  body[data-theme="oscuro"] td.num{ color:#b8c4d6; }
+  body[data-theme="oscuro"] .badge{ background:#26344f; color:#cdd9ea; }
+  body[data-theme="oscuro"] .due{ background:#26344f; color:#cdd9ea; }
+  body[data-theme="oscuro"] .badge.inv{ background:#3a1620; color:#f6a9a9; }
+  body[data-theme="oscuro"] .badge.noinv{ background:#0f2e1f; color:#86efac; }
+  body[data-theme="oscuro"] .badge.fija{ background:#1e2553; color:#aab4f5; }
+  body[data-theme="oscuro"] .badge.transp{ background:#39290f; color:#f4cf86; }
+  body[data-theme="oscuro"] .reg-add input{ background:var(--surface); color:var(--text); }
+  body[data-theme="oscuro"] .dd-acc button{ background:var(--surface); color:var(--text); }
+  body[data-theme="oscuro"] td.editable:focus, body[data-theme="oscuro"] .field textarea:focus{ background:var(--surface-2); }
+  body[data-theme="oscuro"] .table-wrap::-webkit-scrollbar-thumb{ background:#33405a; border-color:var(--bg); }
+  body[data-theme="oscuro"] .cards::-webkit-scrollbar-thumb{ background:#33405a; }
+
+  /* ---------- Panel Resumen (dashboard) ---------- */
+  .dashboard{ background:var(--surface); border-bottom:1px solid var(--border); padding:0 20px; max-height:0; overflow:hidden; transition:max-height .25s ease, padding .2s ease; }
+  .dashboard.on{ max-height:60vh; padding:14px 20px; overflow:auto; }
+  .dash-grid{ display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:14px; }
+  @media (max-width:1000px){ .dash-grid{ grid-template-columns:1fr; } }
+  .card-d{ background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:14px 15px; }
+  .card-d h3{ margin:0 0 12px; font-size:13px; display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .card-d h3 small{ color:var(--muted); font-weight:500; font-size:11px; }
+  .bar-row{ display:grid; grid-template-columns:116px 1fr 52px; gap:9px; align-items:center; margin-bottom:7px; cursor:pointer; font-size:12px; }
+  .bar-row .nm{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar-row .ct{ text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .bar-track{ background:var(--bg); border-radius:6px; height:15px; position:relative; overflow:hidden; }
+  .bar-fill{ background:var(--primary); height:100%; border-radius:6px; }
+  .bar-pend{ position:absolute; top:0; left:0; height:100%; background:repeating-linear-gradient(45deg,var(--amber),var(--amber) 4px,transparent 4px,transparent 8px); }
+  .bar-row:hover .bar-track{ outline:2px solid var(--primary-100); }
+  .seg{ display:flex; height:20px; border-radius:7px; overflow:hidden; border:1px solid var(--border); }
+  .seg span{ height:100%; }
+  .legend{ margin-top:10px; display:flex; flex-direction:column; gap:6px; font-size:12px; }
+  .legend .li{ display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .legend .li:hover{ color:var(--primary-strong); }
+  .legend .sw{ width:12px; height:12px; border-radius:3px; flex:none; }
+  .legend .lc{ margin-left:auto; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  /* ---------- Vista de tarjetas ---------- */
+  .cards{ display:none; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:12px; padding:16px 20px; overflow:auto; flex:1; align-content:start; }
+  .cards.on{ display:grid; }
+  .eqcard{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 14px; cursor:pointer; transition:.12s; }
+  .eqcard:hover{ border-color:var(--primary); box-shadow:var(--shadow-md); transform:translateY(-2px); }
+  .eqcard.urg-venc{ border-left:4px solid #ef4444; } .eqcard.urg-prox{ border-left:4px solid #f59e0b; }
+  .eqcard h4{ margin:0 0 3px; font-size:14px; display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .eqcard .meta{ color:var(--muted); font-size:12px; margin-bottom:7px; }
+  .eqcard .row{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:12px; }
+
+  /* ---------- Ayuda (atajos) ---------- */
+  .help-scrim{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; place-items:center; z-index:1300; }
+  .help-scrim.on{ display:grid; }
+  .help{ background:var(--surface); color:var(--text); border-radius:14px; padding:22px 24px; width:min(420px,92vw); box-shadow:var(--shadow-md); }
+  .help h3{ margin:0 0 14px; font-size:15px; }
+  .help dl{ display:grid; grid-template-columns:auto 1fr; gap:9px 14px; margin:0; }
+  .help dt{ text-align:right; } .help dd{ margin:0; color:var(--muted); }
+  kbd{ background:var(--surface-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:6px; padding:2px 7px; font-family:ui-monospace,monospace; font-size:12px; color:var(--text); }
+
   @media (max-width:720px){ .appbar .sub{ display:none; } .search input{ min-width:150px; } }
 </style>
 </head>
@@ -270,11 +335,15 @@ PLANTILLA = r"""<!DOCTYPE html>
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="search" id="busqueda" placeholder="Buscar en todas las columnas…">
   </div>
+  <button class="btn" id="btnDash">📊 Resumen</button>
+  <button class="btn" id="btnVista">▤ Tarjetas</button>
   <button class="btn" id="btnCols">▦ Columnas</button>
   <button class="btn" id="btnDensidad">≣ Densidad</button>
   <button class="btn" id="limpiar">✕ Limpiar</button>
   <div class="spacer"></div>
   <span class="dirty" id="dirty"><span class="pulse"></span> notas sin respaldar</span>
+  <button class="btn" id="btnTema" title="Modo oscuro">🌙</button>
+  <button class="btn" id="btnAyuda" title="Atajos de teclado (?)">⌨</button>
   <button class="btn primary" id="guardar">💾 Guardar</button>
   <button class="btn" id="cargar">📂 Cargar</button>
   <button class="btn" id="exportar">⤓ CSV</button>
@@ -286,10 +355,13 @@ PLANTILLA = r"""<!DOCTYPE html>
   <div class="chips" id="chips"></div>
 </div>
 
-<div class="table-wrap">
+<div class="dashboard" id="dashboard"></div>
+
+<div class="table-wrap" id="table-wrap">
   <table><thead><tr id="encabezado"></tr></thead><tbody id="cuerpo"></tbody></table>
   <div class="empty" id="vacio" style="display:none"><div class="big">Sin resultados</div><div>Ningún equipo coincide con los filtros actuales.</div></div>
 </div>
+<div class="cards" id="cards"></div>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Ficha del equipo">
@@ -312,6 +384,20 @@ PLANTILLA = r"""<!DOCTYPE html>
     <button class="btn" id="dCerrar2">Cerrar</button>
   </div>
 </aside>
+
+<div class="help-scrim" id="help">
+  <div class="help" role="dialog" aria-modal="true" aria-label="Atajos de teclado">
+    <h3>⌨ Atajos de teclado</h3>
+    <dl>
+      <dt><kbd>/</kbd></dt><dd>Buscar</dd>
+      <dt><kbd>t</kbd></dt><dd>Cambiar entre Tabla y Tarjetas</dd>
+      <dt><kbd>d</kbd></dt><dd>Mostrar/ocultar el panel Resumen</dd>
+      <dt><kbd>o</kbd></dt><dd>Modo claro / oscuro</dd>
+      <dt><kbd>?</kbd></dt><dd>Mostrar esta ayuda</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Cerrar ficha, menús y ayuda</dd>
+    </dl>
+  </div>
+</div>
 
 <div id="toasts"></div>
 
@@ -336,6 +422,10 @@ let oculto;
 try { const g = localStorage.getItem(LS_COLS); oculto = new Set(g ? JSON.parse(g) : DEFAULT_OCULTO); } catch(e){ oculto = new Set(DEFAULT_OCULTO); }
 let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow = null, filtroVida = false;
 const filtros = new Map();
+const LS_THEME = 'aqf12_theme_v1', LS_VIEW = 'aqf12_view_v1';
+let vista = 'tabla', dashAbierto = false, tema = 'claro';
+try { vista = localStorage.getItem(LS_VIEW) || 'tabla'; } catch(e){}
+try { tema = localStorage.getItem(LS_THEME) || 'claro'; } catch(e){}
 
 const $ = s => document.querySelector(s);
 const norm = v => (v === null || v === undefined) ? "" : String(v);
@@ -415,7 +505,18 @@ function celdaBadge(ci, s){
 }
 
 function render(){
-  const cuerpo = $('#cuerpo'), vis = indicesVisibles();
+  const vis = indicesVisibles();
+  if (vista === 'tarjetas') renderTarjetas(vis); else renderTabla(vis);
+  $('#table-wrap').style.display = (vista === 'tabla') ? '' : 'none';
+  $('#cards').classList.toggle('on', vista === 'tarjetas');
+  renderStats(vis.length); renderChips();
+  if (dashAbierto) renderDashboard();
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('activo', filtros.has(+b.dataset.col)));
+  document.querySelectorAll('.sort-ind').forEach(el => { const c = +el.dataset.col;
+    el.textContent = (ordenCol === c) ? (ordenDir === 1 ? '▲' : '▼') : ''; });
+}
+function renderTabla(vis){
+  const cuerpo = $('#cuerpo');
   const frag = document.createDocumentFragment();
   const cols = [...Array(HEADERS.length).keys()].filter(visible);
   for (const i of vis){
@@ -443,10 +544,28 @@ function render(){
   }
   cuerpo.replaceChildren(frag);
   $('#vacio').style.display = vis.length ? 'none' : 'block';
-  renderStats(vis.length); renderChips();
-  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('activo', filtros.has(+b.dataset.col)));
-  document.querySelectorAll('.sort-ind').forEach(el => { const c = +el.dataset.col;
-    el.textContent = (ordenCol === c) ? (ordenDir === 1 ? '▲' : '▼') : ''; });
+}
+function renderTarjetas(vis){
+  const cont = $('#cards');
+  if (!vis.length){ cont.innerHTML = '<div class="empty"><div class="big">Sin resultados</div><div>Ningún equipo coincide con los filtros.</div></div>'; return; }
+  const frag = document.createDocumentFragment();
+  for (const i of vis){
+    const c = document.createElement('div'); c.className = 'eqcard'; c.dataset.i = i;
+    const urg = urgenciaDe(i); if (urg) c.classList.add(urg==='venc'?'urg-venc':'urg-prox');
+    const estado = estadoDe(i), vence = venceDe(i);
+    const eb = estado ? `<span class="badge ${estado==='Vencido'?'venc':(estado==='Pendiente'?'pend':'ok')}">${estado}</span>` : '';
+    const vu = celdaBadge(12, norm(getCell(i,12))) || '';
+    const cl = celdaBadge(13, norm(getCell(i,13))) || '';
+    const marca = [norm(getCell(i,8)), norm(getCell(i,9))].filter(Boolean).join(' ');
+    const serie = norm(getCell(i,10)) ? '· Serie ' + norm(getCell(i,10)) : '';
+    const venceChip = vence ? `<span class="due ${vence<HOY?'venc':(vence<=PROX?'prox':'')}">vence ${vence}</span>` : '';
+    c.innerHTML = `<h4><span>${norm(getCell(i,3)) || '—'}</span>${eb}</h4>
+      <div class="meta">${[norm(getCell(i,4)), norm(getCell(i,6))].filter(Boolean).join(' · ') || '—'}</div>
+      <div class="row">${marca} ${serie}</div>
+      <div class="row" style="margin-top:9px">${vu} ${cl} ${venceChip}</div>`;
+    frag.appendChild(c);
+  }
+  cont.replaceChildren(frag);
 }
 function onInlineEdit(ev){ const i = +ev.target.dataset.i, ci = +ev.target.dataset.ci;
   setCell(i, ci, ev.target.innerText);
@@ -480,6 +599,70 @@ function renderChips(){ const cont = $('#chips'); cont.innerHTML = ''; if (!filt
     x.onclick = () => { filtroVida = false; render(); }; chip.appendChild(x); cont.appendChild(chip); }
   const clr = document.createElement('button'); clr.className = 'clear-all'; clr.textContent = 'Limpiar todo';
   clr.onclick = () => { filtros.clear(); filtroVida = false; render(); }; cont.appendChild(clr); }
+
+/* ---------- Tema / vista / ayuda ---------- */
+function aplicarTema(){ document.body.setAttribute('data-theme', tema==='oscuro'?'oscuro':'claro');
+  $('#btnTema').textContent = tema==='oscuro'?'☀️':'🌙'; $('#btnTema').title = tema==='oscuro'?'Modo claro':'Modo oscuro'; }
+function toggleTema(){ tema = tema==='oscuro'?'claro':'oscuro'; try{ localStorage.setItem(LS_THEME, tema); }catch(e){} aplicarTema(); }
+function toggleVista(){ vista = vista==='tabla'?'tarjetas':'tabla'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){}
+  $('#btnVista').textContent = vista==='tabla'?'▤ Tarjetas':'▦ Tabla'; cerrarMenu(); render(); }
+function toggleDash(){ dashAbierto = !dashAbierto; $('#dashboard').classList.toggle('on', dashAbierto);
+  $('#btnDash').classList.toggle('on', dashAbierto); if (dashAbierto) renderDashboard(); }
+function toggleAyuda(){ $('#help').classList.toggle('on'); }
+function cerrarAyuda(){ $('#help').classList.remove('on'); }
+
+/* ---------- Panel Resumen ---------- */
+function resumenServicios(){ const m = new Map();
+  for (let i=0;i<ROWS.length;i++){ const s = claveFiltro(getCell(i,4));
+    const o = m.get(s) || {t:0,p:0}; o.t++; const e = estadoDe(i); if (e==='Pendiente'||e==='Vencido') o.p++; m.set(s,o); }
+  return [...m.entries()].sort((a,b)=>b[1].t-a[1].t); }
+function resumenVida(){ let vig=0,pa=0,ag=0,disp=0;
+  for (let i=0;i<ROWS.length;i++){ const s = norm(getCell(i,12)), n = parseFloat(s);
+    if (s===''||/disponible/i.test(s)||isNaN(n)) disp++; else if (n<0) ag++; else if (n<=2) pa++; else vig++; }
+  return {vig,pa,ag,disp}; }
+function resumenEstado(){ let ald=0,pen=0,ven=0,sin=0;
+  for (let i=0;i<ROWS.length;i++){ const e = estadoDe(i);
+    if (e==='Vencido') ven++; else if (e==='Pendiente') pen++; else if (e==='Al día') ald++; else sin++; }
+  return {ald,pen,ven,sin}; }
+function pc(n, tot){ return tot ? (n/tot*100) : 0; }
+function renderDashboard(){
+  const tot = ROWS.length || 1;
+  const serv = resumenServicios(), maxT = serv.length ? serv[0][1].t : 1;
+  const filasServ = serv.slice(0,12).map(([nm,o]) => {
+    const esc = nm.replace(/"/g,'&quot;');
+    return `<div class="bar-row" data-serv="${esc}"><span class="nm" title="${esc}">${nm}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${pc(o.t,maxT)}%"></span><span class="bar-pend" style="width:${pc(o.p,maxT)}%"></span></span>
+      <span class="ct">${o.t}${o.p?` · ${o.p}⏳`:''}</span></div>`; }).join('');
+  const v = resumenVida();
+  const segV = `<div class="seg">
+    <span style="width:${pc(v.vig,tot)}%;background:var(--green)" title="Vigente: ${v.vig}"></span>
+    <span style="width:${pc(v.pa,tot)}%;background:var(--amber)" title="Por agotar: ${v.pa}"></span>
+    <span style="width:${pc(v.ag,tot)}%;background:var(--red)" title="Agotada: ${v.ag}"></span>
+    <span style="width:${pc(v.disp,tot)}%;background:var(--faint)" title="Disponible/sin dato: ${v.disp}"></span></div>
+    <div class="legend">
+      <span class="li" data-vida="vig"><span class="sw" style="background:var(--green)"></span>Vigente (&gt;2 años)<span class="lc">${v.vig}</span></span>
+      <span class="li" data-vida="pa"><span class="sw" style="background:var(--amber)"></span>Por agotar (≤2)<span class="lc">${v.pa}</span></span>
+      <span class="li" data-vida="ag"><span class="sw" style="background:var(--red)"></span>Agotada<span class="lc">${v.ag}</span></span>
+      <span class="li"><span class="sw" style="background:var(--faint)"></span>Disponible / sin dato<span class="lc">${v.disp}</span></span></div>`;
+  const e = resumenEstado();
+  const segE = `<div class="seg">
+    <span style="width:${pc(e.ald,tot)}%;background:var(--green)" title="Al día: ${e.ald}"></span>
+    <span style="width:${pc(e.pen,tot)}%;background:var(--amber)" title="Pendiente: ${e.pen}"></span>
+    <span style="width:${pc(e.ven,tot)}%;background:var(--red)" title="Vencido: ${e.ven}"></span>
+    <span style="width:${pc(e.sin,tot)}%;background:var(--faint)" title="Sin registros: ${e.sin}"></span></div>
+    <div class="legend">
+      <span class="li" data-est="Al día"><span class="sw" style="background:var(--green)"></span>Al día<span class="lc">${e.ald}</span></span>
+      <span class="li" data-est="Pendiente"><span class="sw" style="background:var(--amber)"></span>Pendiente<span class="lc">${e.pen}</span></span>
+      <span class="li" data-est="Vencido"><span class="sw" style="background:var(--red)"></span>Vencido<span class="lc">${e.ven}</span></span>
+      <span class="li"><span class="sw" style="background:var(--faint)"></span>Sin registros<span class="lc">${e.sin}</span></span></div>`;
+  $('#dashboard').innerHTML = `<div class="dash-grid">
+    <div class="card-d"><h3>Equipos por servicio <small>top 12 · ⏳ con pendientes</small></h3>${filasServ}</div>
+    <div class="card-d"><h3>Vida útil</h3>${segV}</div>
+    <div class="card-d"><h3>Estado de mantención</h3>${segE}</div></div>`;
+  $('#dashboard').querySelectorAll('.bar-row').forEach(r => r.onclick = () => { filtros.set(4, new Set([r.dataset.serv])); render(); });
+  $('#dashboard').querySelectorAll('.li[data-vida="ag"]').forEach(el => el.onclick = () => { filtroVida = true; render(); });
+  $('#dashboard').querySelectorAll('.li[data-est]').forEach(el => el.onclick = () => { filtros.set(IDX_ESTADO, new Set([el.dataset.est])); render(); });
+}
 
 function construirEncabezado(){ const tr = $('#encabezado'); tr.replaceChildren();
   HEADERS.forEach((h, ci) => { if (!visible(ci)) return;
@@ -622,11 +805,26 @@ function toggleEstado(vals, btn){ const cur = filtros.get(IDX_ESTADO);
 function estadoFiltrado(vals){ const c = filtros.get(IDX_ESTADO); return !!(c && c.size===vals.length && vals.every(v => c.has(v))); }
 function toggleVida(){ filtroVida = !filtroVida; render(); }
 document.addEventListener('mousedown', e => { if (menuAbierto && !menuAbierto.contains(e.target) && !e.target.classList.contains('filtro-btn') && e.target.id!=='btnCols') cerrarMenu(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ cerrarMenu(); cerrarDrawer(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ cerrarMenu(); cerrarDrawer(); cerrarAyuda(); return; }
+  const t = e.target, tag = (t.tagName||'').toLowerCase();
+  if (tag==='input' || tag==='textarea' || t.isContentEditable) return;
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)){ e.preventDefault(); toggleAyuda(); }
+  else if (e.key === '/'){ e.preventDefault(); $('#busqueda').focus(); }
+  else if (e.key === 't'){ toggleVista(); }
+  else if (e.key === 'd'){ toggleDash(); }
+  else if (e.key === 'o'){ toggleTema(); }
+});
 $('.table-wrap').addEventListener('scroll', cerrarMenu);
 window.addEventListener('resize', cerrarMenu);
 $('#cuerpo').addEventListener('click', e => { if (e.target.closest('.editable')) return;
   const tr = e.target.closest('tr'); if (tr) abrirDrawer(+tr.dataset.i); });
+$('#cards').addEventListener('click', e => { const c = e.target.closest('.eqcard'); if (c) abrirDrawer(+c.dataset.i); });
+$('#btnTema').addEventListener('click', toggleTema);
+$('#btnVista').addEventListener('click', toggleVista);
+$('#btnDash').addEventListener('click', toggleDash);
+$('#btnAyuda').addEventListener('click', toggleAyuda);
+$('#help').addEventListener('click', e => { if (e.target.id === 'help') cerrarAyuda(); });
 $('#scrim').addEventListener('click', cerrarDrawer);
 $('#cerrarDrawer').addEventListener('click', cerrarDrawer);
 $('#dCerrar2').addEventListener('click', cerrarDrawer);
@@ -659,6 +857,8 @@ $('#exportar').addEventListener('click', () => { const vis = indicesVisibles(); 
   a.click(); URL.revokeObjectURL(a.href); toast(`CSV exportado (${vis.length} filas)`); });
 window.addEventListener('beforeunload', e => { if (dirty){ e.preventDefault(); e.returnValue = ''; } });
 
+aplicarTema();
+$('#btnVista').textContent = vista==='tabla' ? '▤ Tarjetas' : '▦ Tabla';
 construirEncabezado();
 render();
 </script>

@@ -119,6 +119,12 @@ servidor ni internet) para explorar y anotar los equipos:
   vencidos (rojo) y próximos (ámbar).
 - **Densidad** cómoda/compacta, **búsqueda global**, **Exportar CSV** de la
   vista actual y estado vacío cuando no hay coincidencias.
+- **Panel Resumen** (📊): equipos y pendientes por servicio, distribución de
+  vida útil y de estado de mantención; cada barra/segmento filtra al hacer clic.
+- **Vista de tarjetas** (▤) además de la tabla, para escanear los equipos.
+- **Modo oscuro** (🌙) con interruptor, recordado entre sesiones.
+- **Atajos de teclado**: `/` buscar · `t` tabla/tarjetas · `d` resumen ·
+  `o` claro/oscuro · `?` ayuda · `Esc` cerrar.
 - Los ceros a la izquierda de `Serie` y `N° Inventario` se conservan.
 
 Para regenerarlo a partir de la base:
