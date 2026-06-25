@@ -163,8 +163,9 @@ El botón **📅 Programa MP** (o la tecla `p`) abre una vista con el programa d
 mantención del año, leído de la hoja `Registro_MP-2026` del Excel. Cada fila es
 una mantención (equipo × mes programado) con estas columnas:
 
-**ID · N° Inventario · Equipo · Servicio · Ubicación · Marca · Modelo · Serie ·
-Mes · Programa · Resultado · Fecha de ejecución · Última actualización**.
+**ID · N° Carpeta · N° Inventario · Equipo · Servicio · Ubicación · Marca ·
+Modelo · Serie · Mes · Programa · Resultado · Fecha de ejecución · Última
+actualización**.
 
 Los códigos de **Programa** y **Resultado** se muestran decodificados (con el
 código original visible al pasar el cursor):

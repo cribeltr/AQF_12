@@ -109,6 +109,7 @@ CREATE TABLE mantenciones (
     id                   INTEGER PRIMARY KEY,
     clave                TEXT,       -- identidad del equipo (Serie/N° Inventario/#ID)
     id_planilla          TEXT,       -- ID del equipo en la planilla
+    n_carpeta            TEXT,
     n_inventario         TEXT,
     equipo               TEXT,
     servicio             TEXT,
@@ -130,6 +131,7 @@ CREATE UNIQUE INDEX ux_mant_clave_mes ON mantenciones (clave, mes);
 CREATE VIEW vista_programa AS
 SELECT
     id_planilla  AS "ID",
+    n_carpeta    AS "N° Carpeta",
     n_inventario AS "N° Inventario",
     equipo       AS "Equipo",
     servicio     AS "Servicio",

@@ -89,7 +89,7 @@ def leer_programa(db: Path):
     con = sqlite3.connect(db)
     try:
         q = con.execute(
-            "SELECT clave, id_planilla, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
+            "SELECT clave, id_planilla, n_carpeta, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
             "serie, mes, programa, resultado, fecha_ejecucion, ultima_actualizacion "
             "FROM mantenciones ORDER BY clave, mes"
         ).fetchall()
@@ -97,9 +97,9 @@ def leer_programa(db: Path):
         con.close()
         return []
     con.close()
-    return [{"k": r[0], "id": r[1] or "", "inv": r[2] or "", "eq": r[3] or "", "sv": r[4] or "",
-             "ub": r[5] or "", "ma": r[6] or "", "mo": r[7] or "", "se": r[8] or "",
-             "m": r[9], "p": r[10] or "", "r": r[11] or "", "fe": r[12] or "", "ua": r[13] or ""}
+    return [{"k": r[0], "id": r[1] or "", "car": r[2] or "", "inv": r[3] or "", "eq": r[4] or "", "sv": r[5] or "",
+             "ub": r[6] or "", "ma": r[7] or "", "mo": r[8] or "", "se": r[9] or "",
+             "m": r[10], "p": r[11] or "", "r": r[12] or "", "fe": r[13] or "", "ua": r[14] or ""}
             for r in q]
 
 
@@ -500,7 +500,7 @@ const filtros = new Map();
 const LS_THEME = 'aqf12_theme_v1', LS_VIEW = 'aqf12_view_v1';
 let vista = 'tabla', dashAbierto = false, tema = 'claro';
 const PCOLS = [
-  {k:'id',t:'ID'},{k:'inv',t:'N° Inventario'},{k:'eq',t:'Equipo'},{k:'sv',t:'Servicio'},
+  {k:'id',t:'ID'},{k:'car',t:'N° Carpeta'},{k:'inv',t:'N° Inventario'},{k:'eq',t:'Equipo'},{k:'sv',t:'Servicio'},
   {k:'ub',t:'Ubicación'},{k:'ma',t:'Marca'},{k:'mo',t:'Modelo'},{k:'se',t:'Serie'},
   {k:'mes',t:'Mes'},{k:'prog',t:'Programa'},{k:'res',t:'Resultado'},
   {k:'fe',t:'Fecha de ejecución'},{k:'ua',t:'Última actualización'}
@@ -746,7 +746,7 @@ function etiquetaPrograma(p){ const s = (p||'').toString().trim().toUpperCase(),
 function progFE(x){ const ov=(notas[x.k]&&notas[x.k].prog&&notas[x.k].prog[x.m])||null; return ov?(ov.fe||''):(x.fe||''); }
 function progUA(x){ const ov=(notas[x.k]&&notas[x.k].prog&&notas[x.k].prog[x.m])||null; return ov?(ov.ua||''):(x.ua||''); }
 function colVal(x,k){ switch(k){
-    case 'id': return norm(x.id); case 'inv': return norm(x.inv); case 'eq': return norm(x.eq);
+    case 'id': return norm(x.id); case 'car': return norm(x.car); case 'inv': return norm(x.inv); case 'eq': return norm(x.eq);
     case 'sv': return norm(x.sv); case 'ub': return norm(x.ub); case 'ma': return norm(x.ma);
     case 'mo': return norm(x.mo); case 'se': return norm(x.se); case 'mes': return MESES[x.m-1];
     case 'prog': return progLabel(x.p); case 'res': return resLabel(x.r);
@@ -812,12 +812,12 @@ function renderPrograma(){
   let real=0, pend=0; for (const x of PROGRAMA){ const e = resultadoEstado(x.r); if (e==='realizado') real++; else if (e==='pendiente') pend++; }
   $('#progInfo').innerHTML = `<b>${PROGRAMA.length.toLocaleString('es')}</b> mantenciones · <b>${real.toLocaleString('es')}</b> realizadas · <b>${pend.toLocaleString('es')}</b> pendientes · <b>${vis.length.toLocaleString('es')}</b> en pantalla`;
   const body = $('#progBody');
-  if (!vis.length){ body.innerHTML = '<tr><td colspan="13" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
+  if (!vis.length){ body.innerHTML = '<tr><td colspan="14" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
   const frag = document.createDocumentFragment();
   for (const x of vis){
     const fe = progFE(x), ua = progUA(x);
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${norm(x.id)||'—'}</td><td>${norm(x.inv)||'—'}</td>
+    tr.innerHTML = `<td>${norm(x.id)||'—'}</td><td>${norm(x.car)||'—'}</td><td>${norm(x.inv)||'—'}</td>
       <td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.sv)||'—'}</td><td>${norm(x.ub)||'—'}</td>
       <td>${norm(x.ma)||'—'}</td><td>${norm(x.mo)||'—'}</td><td>${norm(x.se)||'—'}</td>
       <td>${MESES[x.m-1]}</td><td>${etiquetaPrograma(x.p)}</td><td>${etiquetaResultado(x.r)}</td>

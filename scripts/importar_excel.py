@@ -267,6 +267,7 @@ def leer_programa(excel: Path, hoja: str = "Registro_MP-2026") -> list[tuple]:
         if len(r) < 16:
             continue
         idp = a_texto_fiel(r[1])
+        car = a_texto_fiel(r[2])
         inv = limpiar(a_texto_fiel(r[3]))
         eq = a_texto_fiel(r[4])
         sv = a_texto_fiel(r[5])
@@ -282,15 +283,15 @@ def leer_programa(excel: Path, hoja: str = "Registro_MP-2026") -> list[tuple]:
             p = a_texto_fiel(r[pi]) if len(r) > pi else None
             res = a_texto_fiel(r[ri]) if len(r) > ri else None
             if p or res:
-                out.append((clave, idp, inv, eq, sv, ub, ma, mo, se, m + 1, p, res))
+                out.append((clave, idp, car, inv, eq, sv, ub, ma, mo, se, m + 1, p, res))
     return out
 
 
 def insertar_mantenciones(con: sqlite3.Connection, programa: list[tuple]) -> int:
     """Inserta el programa en la tabla `mantenciones` (ignora duplicados clave+mes)."""
     sql = ("INSERT OR IGNORE INTO mantenciones "
-           "(clave, id_planilla, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
-           "serie, mes, programa, resultado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+           "(clave, id_planilla, n_carpeta, n_inventario, equipo, servicio, ubicacion, marca, modelo, "
+           "serie, mes, programa, resultado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
     antes = con.total_changes
     con.executemany(sql, programa)
     con.commit()
