@@ -183,9 +183,12 @@ código original visible al pasar el cursor):
 La **Fecha de ejecución** es **editable** (se completa al ejecutar la mantención)
 y la **Última actualización** se pone **sola** cada vez que editas la fecha.
 
-Se puede filtrar por **mes** y por **resultado**, y la búsqueda global también
-aplica. La fecha de ejecución se guarda igual que las notas (localStorage +
-respaldo `notas_equipos.json`).
+**Filtros estilo Excel**: cada encabezado tiene un botón **▾** que abre un menú
+con buscador y casillas para elegir **uno o varios valores** de esa columna
+(con "(Seleccionar todo)"). Los filtros de distintas columnas se **combinan**, el
+encabezado filtrado se resalta y **✕ Limpiar filtros** los quita todos. La
+búsqueda global también aplica. La fecha de ejecución se guarda igual que las
+notas (localStorage + respaldo `notas_equipos.json`).
 
 **En la base de datos**: al importar se crea la tabla `mantenciones` (una fila
 por equipo y mes) y la vista SQL **`vista_programa`** con esas columnas ya

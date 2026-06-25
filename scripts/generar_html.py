@@ -352,7 +352,9 @@ PLANTILLA = r"""<!DOCTYPE html>
   .prog-info b{ color:var(--text); }
   .prog-table-wrap{ overflow:auto; flex:1; }
   .prog-table{ border-collapse:separate; border-spacing:0; width:100%; }
-  .prog-table thead th{ position:sticky; top:0; z-index:5; background:#0f766e; color:#fff; padding:9px 11px; text-align:left; white-space:nowrap; border-right:1px solid rgba(255,255,255,.14); font-size:12px; }
+  .prog-table thead th{ position:sticky; top:0; z-index:5; background:#0f766e; color:#fff; padding:0; text-align:left; white-space:nowrap; border-right:1px solid rgba(255,255,255,.14); font-size:12px; }
+  .prog-table thead .th-inner{ padding:8px 9px 8px 11px; }
+  .prog-table thead .th-label{ flex:1; }
   .prog-table td{ border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:6px 11px; white-space:nowrap; font-size:12.5px; }
   .prog-table tbody tr:nth-child(even) td{ background:var(--row-alt); }
   .prog-table tbody tr:hover td{ background:var(--row-hover); }
@@ -360,6 +362,7 @@ PLANTILLA = r"""<!DOCTYPE html>
   .prog-table input.fe{ padding:4px 7px; border:1px solid var(--edit-border); border-radius:6px; background:var(--edit); font:inherit; color:var(--text); }
   .prog-table input.fe:focus{ outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-100); }
   .prog-table .ua{ color:var(--muted); font-variant-numeric:tabular-nums; }
+  .btn.sm{ padding:5px 10px; font-size:12px; }
   .prog-empty{ padding:40px 20px; text-align:center; color:var(--muted); }
 
   /* ---------- Ayuda (atajos) ---------- */
@@ -415,34 +418,12 @@ PLANTILLA = r"""<!DOCTYPE html>
   <div class="prog-bar">
     <button class="btn" id="progBack">← Equipos</button>
     <strong>Programa de mantención</strong>
-    <select class="prog-sel" id="progMes"></select>
-    <select class="prog-sel" id="progProg">
-      <option value="">Todos los programas</option>
-      <option value="X">Programada</option>
-      <option value="R">Reprogramada</option>
-      <option value="RA">Reprog. año anterior</option>
-      <option value="PM">Puesta en marcha</option>
-      <option value="BAJA">Baja</option>
-    </select>
-    <select class="prog-sel" id="progRes">
-      <option value="">Todos los resultados</option>
-      <option value="realizado">Realizada</option>
-      <option value="pendiente">Pendiente</option>
-      <option value="reprogramado">Reprogramada (C1–C8)</option>
-      <option value="no">No realizada</option>
-      <option value="nu">No ubicable</option>
-      <option value="fs">Fuera de servicio</option>
-      <option value="baja">Baja</option>
-    </select>
+    <button class="btn sm" id="progClear" hidden>✕ Limpiar filtros</button>
     <span class="prog-info" id="progInfo"></span>
   </div>
   <div class="prog-table-wrap">
     <table class="prog-table">
-      <thead><tr>
-        <th>ID</th><th>N° Inventario</th><th>Equipo</th><th>Servicio</th><th>Ubicación</th>
-        <th>Marca</th><th>Modelo</th><th>Serie</th><th>Mes</th>
-        <th>Programa</th><th>Resultado</th><th>Fecha de ejecución</th><th>Última actualización</th>
-      </tr></thead>
+      <thead><tr id="progHead"></tr></thead>
       <tbody id="progBody"></tbody>
     </table>
   </div>
@@ -518,7 +499,13 @@ let dirty = false, ordenCol = null, ordenDir = 1, menuAbierto = null, drawerRow 
 const filtros = new Map();
 const LS_THEME = 'aqf12_theme_v1', LS_VIEW = 'aqf12_view_v1';
 let vista = 'tabla', dashAbierto = false, tema = 'claro';
-let progMes = '', progRes = '', progProg = '';
+const PCOLS = [
+  {k:'id',t:'ID'},{k:'inv',t:'N° Inventario'},{k:'eq',t:'Equipo'},{k:'sv',t:'Servicio'},
+  {k:'ub',t:'Ubicación'},{k:'ma',t:'Marca'},{k:'mo',t:'Modelo'},{k:'se',t:'Serie'},
+  {k:'mes',t:'Mes'},{k:'prog',t:'Programa'},{k:'res',t:'Resultado'},
+  {k:'fe',t:'Fecha de ejecución'},{k:'ua',t:'Última actualización'}
+];
+const progFiltros = new Map();   // k -> Set de valores permitidos (estilo Excel)
 try { vista = localStorage.getItem(LS_VIEW) || 'tabla'; } catch(e){}
 try { tema = localStorage.getItem(LS_THEME) || 'claro'; } catch(e){}
 
@@ -727,35 +714,100 @@ function resultadoEstado(r){ const s = (r||'').toString().trim().toUpperCase();
   if (/^C[1-8]$/.test(s)) return 'reprogramado';
   if (s==='NO') return 'no'; if (s==='NU') return 'nu'; if (s==='FS') return 'fs';
   if (s==='BAJA') return 'baja'; return 'otro'; }
-function etiquetaResultado(r){ const raw = (r||'').toString().trim(), s = raw.toUpperCase();
+function progLabel(p){ const s = (p||'').toString().trim().toUpperCase();
+  if (s==='') return '';
+  return ({X:'Programada', R:'Reprogramada', RA:'Reprog. año anterior', PM:'Puesta en marcha', BAJA:'Baja'})[s] || (p||'').toString().trim(); }
+function resLabel(r){ const raw = (r||'').toString().trim(), s = raw.toUpperCase();
+  if (s==='') return 'Pendiente';
+  if (s==='SI') return 'Realizada';
+  if (s==='SI-RA') return 'Realizada año ant.';
+  if (/^C[1-8]$/.test(s)) return `Reprogramada (${raw})`;
+  if (s==='FS') return 'Fuera de servicio';
+  if (s==='NO') return 'No realizada';
+  if (s==='NU') return 'No ubicable';
+  if (s==='BAJA') return 'Baja';
+  return raw; }
+function etiquetaResultado(r){ const s = (r||'').toString().trim().toUpperCase(), L = resLabel(r);
   if (s==='') return '<span class="badge pend">Pendiente</span>';
-  if (s==='SI') return '<span class="badge ok" title="Mantención Preventiva Realizada">Realizada</span>';
-  if (s==='SI-RA') return '<span class="badge ok" title="Mantención de Año Anterior Realizada">Realizada año ant.</span>';
-  if (/^C[1-8]$/.test(s)) return `<span class="badge repro" title="Mantención Preventiva Reprogramada (ver causales)">Reprogramada (${raw})</span>`;
-  if (s==='FS') return '<span class="badge venc" title="Fuera de Servicio">Fuera de servicio</span>';
-  if (s==='NO') return '<span class="badge venc" title="No Realizada">No realizada</span>';
-  if (s==='NU') return '<span class="badge nu" title="No Ubicable">No ubicable</span>';
+  if (s==='SI'||s==='SI-RA') return `<span class="badge ok" title="${s==='SI'?'Mantención Preventiva Realizada':'Mantención de Año Anterior Realizada'}">${L}</span>`;
+  if (/^C[1-8]$/.test(s)) return `<span class="badge repro" title="Mantención Preventiva Reprogramada (ver causales)">${L}</span>`;
+  if (s==='FS'||s==='NO') return `<span class="badge venc" title="${s==='FS'?'Fuera de Servicio':'No Realizada'}">${L}</span>`;
+  if (s==='NU') return `<span class="badge nu" title="No Ubicable">${L}</span>`;
   if (s==='BAJA') return '<span class="badge" title="Equipo Dado de Baja">Baja</span>';
-  return `<span class="badge">${raw||'—'}</span>`; }
-function etiquetaPrograma(p){ const raw = (p||'').toString().trim(), s = raw.toUpperCase();
+  return `<span class="badge">${L||'—'}</span>`; }
+function etiquetaPrograma(p){ const s = (p||'').toString().trim().toUpperCase(), L = progLabel(p);
   if (s==='') return '—';
-  if (s==='X') return '<span class="badge prog-x" title="Mantención Preventiva Programada">Programada</span>';
-  if (s==='R') return '<span class="badge repro" title="Mantención Preventiva Reprogramada">Reprogramada</span>';
-  if (s==='RA') return '<span class="badge repro" title="Reprogramada de Año Anterior">Reprog. año ant.</span>';
-  if (s==='PM') return '<span class="badge prog-pm" title="Puesta en Marcha">Puesta en marcha</span>';
+  if (s==='X') return `<span class="badge prog-x" title="Mantención Preventiva Programada">${L}</span>`;
+  if (s==='R') return `<span class="badge repro" title="Mantención Preventiva Reprogramada">${L}</span>`;
+  if (s==='RA') return `<span class="badge repro" title="Reprogramada de Año Anterior">${L}</span>`;
+  if (s==='PM') return `<span class="badge prog-pm" title="Puesta en Marcha">${L}</span>`;
   if (s==='BAJA') return '<span class="badge" title="Equipo Dado de Baja">Baja</span>';
-  return `<span class="badge">${raw}</span>`; }
+  return `<span class="badge">${L}</span>`; }
+function progFE(x){ const ov=(notas[x.k]&&notas[x.k].prog&&notas[x.k].prog[x.m])||null; return ov?(ov.fe||''):(x.fe||''); }
+function progUA(x){ const ov=(notas[x.k]&&notas[x.k].prog&&notas[x.k].prog[x.m])||null; return ov?(ov.ua||''):(x.ua||''); }
+function colVal(x,k){ switch(k){
+    case 'id': return norm(x.id); case 'inv': return norm(x.inv); case 'eq': return norm(x.eq);
+    case 'sv': return norm(x.sv); case 'ub': return norm(x.ub); case 'ma': return norm(x.ma);
+    case 'mo': return norm(x.mo); case 'se': return norm(x.se); case 'mes': return MESES[x.m-1];
+    case 'prog': return progLabel(x.p); case 'res': return resLabel(x.r);
+    case 'fe': return progFE(x); case 'ua': return progUA(x); default: return ''; } }
+function colKeyVal(x,k){ const v = colVal(x,k); return v===''? VACIO : v; }
+function valoresProg(k){ const set = new Set();
+  for (const x of PROGRAMA) set.add(colKeyVal(x,k));
+  let arr = [...set];
+  if (k==='mes') arr.sort((a,b)=> MESES.indexOf(a)-MESES.indexOf(b));
+  else if (k==='id') arr.sort((a,b)=> a===VACIO?1 : b===VACIO?-1 : ((parseFloat(a)||0)-(parseFloat(b)||0)) || a.localeCompare(b,'es',{numeric:true}));
+  else arr.sort((a,b)=> a===VACIO?-1 : b===VACIO?1 : a.localeCompare(b,'es',{numeric:true}));
+  return arr; }
+function buildProgHead(){ const tr = $('#progHead'); tr.replaceChildren();
+  for (const c of PCOLS){ const th = document.createElement('th');
+    const inner = document.createElement('div'); inner.className = 'th-inner';
+    const lab = document.createElement('span'); lab.className = 'th-label'; lab.style.cursor = 'default'; lab.innerHTML = `<span>${c.t}</span>`;
+    const fb = document.createElement('span'); fb.className = 'filtro-btn' + (progFiltros.has(c.k)?' activo':''); fb.dataset.pcol = c.k; fb.textContent = '▾'; fb.title = 'Filtrar ' + c.t;
+    fb.onclick = e => { e.stopPropagation(); abrirDropdownProg(c.k, fb); };
+    inner.append(lab, fb); th.appendChild(inner); tr.appendChild(th); } }
+function abrirDropdownProg(k, btn){
+  if (menuAbierto && menuAbierto.dataset.pcol === k){ cerrarMenu(); return; } cerrarMenu();
+  const valores = valoresProg(k);
+  const seleccion = progFiltros.has(k) ? new Set(progFiltros.get(k)) : new Set(valores);
+  const dd = document.createElement('div'); dd.className = 'menu dropdown'; dd.dataset.pcol = k;
+  dd.innerHTML = `<div class="dd-top"><input type="text" class="dd-search" placeholder="Buscar valor…"></div>
+    <div class="dd-list"></div>
+    <div class="dd-acc"><button class="ok">Aplicar</button><button class="cancel">Cancelar</button></div>`;
+  document.body.appendChild(dd); menuAbierto = dd;
+  const lista = dd.querySelector('.dd-list');
+  const dibujar = (f="") => { lista.replaceChildren(); const q = f.trim().toLowerCase();
+    const vis = valores.filter(v => !q || v.toLowerCase().includes(q));
+    const tl = document.createElement('label'); tl.className = 'todos';
+    const tc = document.createElement('input'); tc.type = 'checkbox';
+    const mv = vis.filter(v => seleccion.has(v)).length;
+    tc.checked = vis.length>0 && mv===vis.length; tc.indeterminate = mv>0 && mv<vis.length;
+    tc.onchange = () => { vis.forEach(v => tc.checked ? seleccion.add(v) : seleccion.delete(v)); dibujar(f); };
+    const ts = document.createElement('span'); ts.className='dd-val'; ts.textContent='(Seleccionar todo)';
+    tl.append(tc, ts); lista.appendChild(tl);
+    for (const v of vis){ const l = document.createElement('label');
+      const c = document.createElement('input'); c.type='checkbox'; c.checked=seleccion.has(v);
+      c.onchange = () => { c.checked?seleccion.add(v):seleccion.delete(v);
+        const m = vis.filter(x=>seleccion.has(x)).length; tc.checked=m===vis.length; tc.indeterminate=m>0&&m<vis.length; };
+      const s = document.createElement('span'); s.className='dd-val'; s.textContent=v;
+      if (v===VACIO){ s.style.color='var(--faint)'; s.style.fontStyle='italic'; }
+      l.append(c, s); lista.appendChild(l); } };
+  dibujar();
+  dd.querySelector('.dd-search').oninput = e => dibujar(e.target.value);
+  dd.querySelector('.ok').onclick = () => { if (seleccion.size===valores.length) progFiltros.delete(k); else progFiltros.set(k, seleccion); cerrarMenu(); renderPrograma(); };
+  dd.querySelector('.cancel').onclick = cerrarMenu;
+  posicionar(dd, btn); dd.querySelector('.dd-search').focus(); }
 function getProg(k,m){ return (notas[k] && notas[k].prog && notas[k].prog[m]) || {}; }
 function setProg(k,m,fe){ if(!notas[k]) notas[k]={}; if(!notas[k].prog) notas[k].prog={};
   const ua = ahora(); notas[k].prog[m] = {fe: fe||'', ua}; try{ localStorage.setItem(LS_KEY, JSON.stringify(notas)); }catch(e){} marcarDirty(true); return ua; }
 function programaVisibles(){ const q = $('#busqueda').value.trim().toLowerCase();
   return PROGRAMA.filter(x => {
-    if (progMes && x.m !== +progMes) return false;
-    if (progProg && (x.p||'').toString().trim().toUpperCase() !== progProg) return false;
-    if (progRes && resultadoEstado(x.r) !== progRes) return false;
-    if (q && ![x.id,x.inv,x.eq,x.sv,x.ub,x.ma,x.mo,x.se,MESES[x.m-1],x.p,x.r].some(v => norm(v).toLowerCase().includes(q))) return false;
+    for (const [k,sel] of progFiltros){ if (!sel.has(colKeyVal(x,k))) return false; }
+    if (q && !PCOLS.some(c => norm(colVal(x,c.k)).toLowerCase().includes(q))) return false;
     return true; }); }
 function renderPrograma(){
+  buildProgHead();
+  $('#progClear').hidden = progFiltros.size === 0;
   const vis = programaVisibles();
   let real=0, pend=0; for (const x of PROGRAMA){ const e = resultadoEstado(x.r); if (e==='realizado') real++; else if (e==='pendiente') pend++; }
   $('#progInfo').innerHTML = `<b>${PROGRAMA.length.toLocaleString('es')}</b> mantenciones · <b>${real.toLocaleString('es')}</b> realizadas · <b>${pend.toLocaleString('es')}</b> pendientes · <b>${vis.length.toLocaleString('es')}</b> en pantalla`;
@@ -763,9 +815,7 @@ function renderPrograma(){
   if (!vis.length){ body.innerHTML = '<tr><td colspan="13" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
   const frag = document.createDocumentFragment();
   for (const x of vis){
-    const ov = (notas[x.k] && notas[x.k].prog && notas[x.k].prog[x.m]) || null;
-    const fe = ov ? (ov.fe || '') : (x.fe || '');
-    const ua = ov ? (ov.ua || '') : (x.ua || '');
+    const fe = progFE(x), ua = progUA(x);
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${norm(x.id)||'—'}</td><td>${norm(x.inv)||'—'}</td>
       <td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.sv)||'—'}</td><td>${norm(x.ub)||'—'}</td>
@@ -992,9 +1042,8 @@ $('#btnVista').addEventListener('click', toggleVista);
 $('#btnDash').addEventListener('click', toggleDash);
 $('#btnPrograma').addEventListener('click', togglePrograma);
 $('#progBack').addEventListener('click', () => { vista='tabla'; try{ localStorage.setItem(LS_VIEW, vista); }catch(e){} render(); });
-$('#progMes').addEventListener('change', e => { progMes = e.target.value; renderPrograma(); });
-$('#progProg').addEventListener('change', e => { progProg = e.target.value; renderPrograma(); });
-$('#progRes').addEventListener('change', e => { progRes = e.target.value; renderPrograma(); });
+$('#progClear').addEventListener('click', () => { progFiltros.clear(); renderPrograma(); });
+$('.prog-table-wrap').addEventListener('scroll', cerrarMenu);
 $('#progBody').addEventListener('change', e => { const inp = e.target.closest('input.fe'); if (!inp) return;
   const ua = setProg(inp.dataset.k, +inp.dataset.m, inp.value);
   const cell = inp.closest('tr').querySelector('.ua'); if (cell) cell.textContent = inp.value ? ua : '—'; });
@@ -1006,7 +1055,7 @@ $('#dCerrar2').addEventListener('click', cerrarDrawer);
 $('#busqueda').addEventListener('input', render);
 $('#btnCols').addEventListener('click', e => { e.stopPropagation(); abrirColumnas(e.currentTarget); });
 $('#btnDensidad').addEventListener('click', () => document.body.classList.toggle('compact'));
-$('#limpiar').addEventListener('click', () => { filtros.clear(); filtroVida=false; $('#busqueda').value=''; ordenCol=null; render(); });
+$('#limpiar').addEventListener('click', () => { filtros.clear(); progFiltros.clear(); filtroVida=false; $('#busqueda').value=''; ordenCol=null; render(); });
 
 function descargarNotas(){ const blob = new Blob([JSON.stringify({version:2, notas}, null, 2)], {type:'application/json'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'notas_equipos.json';
@@ -1034,7 +1083,6 @@ window.addEventListener('beforeunload', e => { if (dirty){ e.preventDefault(); e
 
 aplicarTema();
 $('#btnVista').textContent = vista==='tabla' ? '▤ Tarjetas' : '▦ Tabla';
-$('#progMes').innerHTML = '<option value="">Todos los meses</option>' + MESES.map((m,i) => `<option value="${i+1}">${m}</option>`).join('');
 construirEncabezado();
 render();
 </script>
