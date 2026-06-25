@@ -174,11 +174,25 @@ una mantención (equipo × mes programado) con las columnas:
 
 Se puede filtrar por **mes** y por **resultado**, y la búsqueda global también
 aplica. La fecha de ejecución se guarda igual que las notas (localStorage +
-respaldo `notas_equipos.json`). Esta vista vive **solo en el HTML**: no agrega
-tablas ni vistas a `equipos.db`. Para regenerarla:
+respaldo `notas_equipos.json`).
+
+**En la base de datos**: al importar se crea la tabla `mantenciones` (una fila
+por equipo y mes) y la vista SQL **`vista_programa`** con esas columnas ya
+legibles. La interfaz lee el programa desde esa tabla (fuente única). Para
+volcar las fechas de ejecución que editaste en el HTML a la base:
 
 ```bash
-python scripts/generar_html.py     # lee equipos.db y data/Programacion_MP_2026.xlsm
+python scripts/aplicar_notas.py notas_equipos.json   # escribe en la tabla mantenciones
+python scripts/generar_html.py                       # regenera el HTML con las fechas
+```
+
+Consultas SQL de ejemplo:
+
+```sql
+SELECT * FROM vista_programa WHERE "Resultado" = 'Pendiente' AND "Mes" = 'Agosto';
+SELECT "Resultado", COUNT(*) FROM vista_programa GROUP BY "Resultado";
+-- También se puede consultar la tabla base directamente:
+SELECT mes, COUNT(*) FROM mantenciones WHERE resultado = 'Si' GROUP BY mes ORDER BY mes;
 ```
 
 ### Escribir notas y observaciones

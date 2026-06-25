@@ -252,6 +252,47 @@ def insertar(con: sqlite3.Connection, registros: list[dict]) -> tuple[int, list[
     return insertados, conflictos
 
 
+def leer_programa(excel: Path, hoja: str = "Registro_MP-2026") -> list[tuple]:
+    """Lee la hoja de registro -> filas (clave, equipo, serie, servicio, mes, P, R).
+
+    Una fila por (equipo × mes) con programa o resultado. La `clave` se calcula
+    igual que en `equipos`: Serie -> N° Inventario -> "#" + ID.
+    """
+    wb = openpyxl.load_workbook(excel, data_only=True, read_only=True)
+    if hoja not in wb.sheetnames:
+        return []
+    ws = wb[hoja]
+    out: list[tuple] = []
+    for r in ws.iter_rows(min_row=8, values_only=True):
+        if len(r) < 16:
+            continue
+        idv = a_texto_fiel(r[1]) or ""
+        inv = limpiar(a_texto_fiel(r[3]))
+        eq = a_texto_fiel(r[4])
+        sv = a_texto_fiel(r[5])
+        se = limpiar(a_texto_fiel(r[11]))
+        if not (eq or se or inv):
+            continue
+        clave = se or inv or ("#" + idv)
+        for m in range(12):
+            pi, ri = 19 + 2 * m, 20 + 2 * m
+            p = a_texto_fiel(r[pi]) if len(r) > pi else None
+            res = a_texto_fiel(r[ri]) if len(r) > ri else None
+            if p or res:
+                out.append((clave, eq, se, sv, m + 1, p, res))
+    return out
+
+
+def insertar_mantenciones(con: sqlite3.Connection, programa: list[tuple]) -> int:
+    """Inserta el programa en la tabla `mantenciones` (ignora duplicados clave+mes)."""
+    sql = ("INSERT OR IGNORE INTO mantenciones "
+           "(clave, equipo, serie, servicio, mes, programa, resultado) VALUES (?,?,?,?,?,?,?)")
+    antes = con.total_changes
+    con.executemany(sql, programa)
+    con.commit()
+    return con.total_changes - antes
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -273,6 +314,10 @@ def main() -> int:
     print(f"Creando base     : {args.db}")
     con = crear_base(args.db)
     insertados, conflictos = insertar(con, registros)
+
+    programa = leer_programa(args.excel)
+    n_mant = insertar_mantenciones(con, programa)
+    print(f"Mantenciones      : {n_mant}  (tabla mantenciones / vista_programa)")
 
     # Estadísticas rápidas.
     con_serie = sum(1 for r in registros if r["serie"])

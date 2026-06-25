@@ -56,14 +56,29 @@ def main():
     for r in con.execute("SELECT id, serie, n_inventario FROM equipos"):
         mapa[clave_equipo(r["serie"], r["n_inventario"], r["id"])] = r["id"]
 
-    aplicadas, sin_match = 0, []
+    aplicadas, sin_match, prog_n = 0, [], 0
     for k, campos in entrantes.items():
-        if k not in mapa or not isinstance(campos, dict):
-            if k not in mapa:
+        if not isinstance(campos, dict):
+            continue
+        # Programa de mantención: vuelca fecha de ejecución a la tabla mantenciones
+        # (independiente de la tabla equipos; se busca por clave + mes).
+        prog = campos.get("prog")
+        if isinstance(prog, dict):
+            for mes, pe in prog.items():
+                if isinstance(pe, dict) and str(mes).isdigit():
+                    cur = con.execute(
+                        "UPDATE mantenciones SET fecha_ejecucion = ?, ultima_actualizacion = ? "
+                        "WHERE clave = ? AND mes = ?",
+                        (pe.get("fe") or None, pe.get("ua") or None, k, int(mes)))
+                    if cur.rowcount and cur.rowcount > 0:
+                        prog_n += cur.rowcount
+        # Notas / observaciones / intervenciones (tabla equipos).
+        tiene_equipo = any(c in campos for c in ("observaciones", "notas", "registros"))
+        if k not in mapa:
+            if tiene_equipo:
                 sin_match.append(k)
             continue
         sets, valores = [], []
-        # Campos de texto libre.
         for campo in ("observaciones", "notas"):
             if campo in campos:
                 sets.append(f"{campo} = ?")
@@ -87,6 +102,8 @@ def main():
     con.close()
 
     print(f"Notas aplicadas a {aplicadas} equipo(s).")
+    if prog_n:
+        print(f"Fechas de ejecución aplicadas: {prog_n} (tabla mantenciones).")
     if sin_match:
         print(f"Sin coincidencia ({len(sin_match)}): {', '.join(sin_match[:10])}"
               + (" …" if len(sin_match) > 10 else ""))

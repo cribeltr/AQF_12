@@ -85,3 +85,56 @@ SELECT
     proximo_vencimiento AS "Próximo vencimiento"
 FROM equipos
 ORDER BY id;
+
+-- =====================================================================
+--  Programa de mantención (origen: hoja "Registro_MP-2026").
+--  Una fila por equipo y mes con programa o resultado registrado.
+--   * programa  : 'X' = Programado, 'R' = Reprogramado, etc.
+--   * resultado : 'Si' = Realizado; vacío = Pendiente; 'C#'/'R' = Reprogramado;
+--                 'No' = No realizado; 'Baja'.
+--   * fecha_ejecucion / ultima_actualizacion: los completa el usuario desde la
+--     interfaz (vía aplicar_notas.py). No vienen en el Excel.
+--  `clave` es la misma identidad del equipo: Serie -> N° Inventario -> "#"+ID.
+-- =====================================================================
+DROP VIEW  IF EXISTS vista_programa;
+DROP TABLE IF EXISTS mantenciones;
+
+CREATE TABLE mantenciones (
+    id                   INTEGER PRIMARY KEY,
+    clave                TEXT,       -- identidad del equipo (Serie/N° Inventario/#ID)
+    equipo               TEXT,
+    serie                TEXT,
+    servicio             TEXT,
+    mes                  INTEGER,    -- 1 = Enero … 12 = Diciembre
+    programa             TEXT,
+    resultado            TEXT,
+    fecha_ejecucion      TEXT,       -- editable (la completa el usuario)
+    ultima_actualizacion TEXT        -- se actualiza al editar la fecha de ejecución
+);
+
+CREATE INDEX ix_mant_clave ON mantenciones (clave);
+CREATE UNIQUE INDEX ux_mant_clave_mes ON mantenciones (clave, mes);
+
+-- Vista legible: mes con nombre y programa/resultado decodificados.
+CREATE VIEW vista_programa AS
+SELECT
+    equipo   AS "Equipo",
+    serie    AS "Serie",
+    servicio AS "Servicio",
+    CASE mes WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+             WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+             WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+             WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+             ELSE mes END                                          AS "Mes",
+    CASE WHEN upper(programa) = 'X' THEN 'Programado'
+         WHEN upper(programa) = 'R' THEN 'Reprogramado'
+         ELSE programa END                                        AS "Programa",
+    CASE WHEN upper(resultado) = 'SI' THEN 'Realizado'
+         WHEN resultado IS NULL OR resultado = '' THEN 'Pendiente'
+         WHEN upper(resultado) = 'NO' THEN 'No realizado'
+         WHEN upper(resultado) = 'BAJA' THEN 'Baja'
+         ELSE 'Reprogramado' END                                  AS "Resultado",
+    fecha_ejecucion      AS "Fecha de ejecución",
+    ultima_actualizacion AS "Última actualización"
+FROM mantenciones
+ORDER BY clave, mes;

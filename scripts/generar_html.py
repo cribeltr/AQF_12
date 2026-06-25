@@ -28,11 +28,8 @@ import json
 import sqlite3
 from pathlib import Path
 
-import openpyxl
-
 RAIZ = Path(__file__).resolve().parent.parent
 DB_POR_DEFECTO = RAIZ / "equipos.db"
-EXCEL_POR_DEFECTO = RAIZ / "data" / "Programacion_MP_2026.xlsm"
 SALIDA_POR_DEFECTO = RAIZ / "equipos_filtrable.html"
 
 # Columnas de SOLO LECTURA (orden y encabezados exactos de la planilla).
@@ -82,44 +79,26 @@ def leer_datos(db: Path):
     return rows, db_reg
 
 
-def _texto(v):
-    if v is None:
-        return ""
-    if isinstance(v, str):
-        return v.strip()
-    if isinstance(v, float) and v.is_integer():
-        return str(int(v))
-    return str(v)
+def leer_programa(db: Path):
+    """Lee la tabla `mantenciones` de la base y devuelve las filas del programa.
 
-
-def leer_programa(excel: Path, hoja: str = "Registro_MP-2026"):
-    """Lee la hoja de registro y devuelve una fila por (equipo × mes) programado.
-
-    Cada elemento: {k: clave equipo, id, eq, se(serie), sv(servicio), m: 1-12,
-    p: valor Programado (X/R/...), r: valor Resultado (Si/C#/No/Baja/...)}.
-    Solo se incluyen los meses con algún valor de Programa o Resultado.
+    Cada elemento: {k: clave equipo, eq, se(serie), sv(servicio), m: 1-12,
+    p: Programa, r: Resultado, fe: fecha de ejecución, ua: última actualización}.
+    Devuelve [] si la tabla no existe todavía.
     """
-    if not Path(excel).exists():
+    con = sqlite3.connect(db)
+    try:
+        q = con.execute(
+            "SELECT clave, equipo, serie, servicio, mes, programa, resultado, "
+            "fecha_ejecucion, ultima_actualizacion FROM mantenciones ORDER BY clave, mes"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        con.close()
         return []
-    wb = openpyxl.load_workbook(excel, data_only=True, read_only=True)
-    if hoja not in wb.sheetnames:
-        return []
-    ws = wb[hoja]
-    prog = []
-    for r in ws.iter_rows(min_row=8, values_only=True):
-        if len(r) < 16:
-            continue
-        idv, inv, eq, sv, se = _texto(r[1]), _texto(r[3]), _texto(r[4]), _texto(r[5]), _texto(r[11])
-        if not (eq or se or inv):
-            continue
-        key = se or inv or ("#" + idv)
-        for m in range(12):
-            pi, ri = 19 + 2 * m, 20 + 2 * m
-            p = _texto(r[pi]) if len(r) > pi else ""
-            res = _texto(r[ri]) if len(r) > ri else ""
-            if p or res:
-                prog.append({"k": key, "id": idv, "eq": eq, "se": se, "sv": sv, "m": m + 1, "p": p, "r": res})
-    return prog
+    con.close()
+    return [{"k": r[0], "eq": r[1] or "", "se": r[2] or "", "sv": r[3] or "",
+             "m": r[4], "p": r[5] or "", "r": r[6] or "",
+             "fe": r[7] or "", "ua": r[8] or ""} for r in q]
 
 
 PLANTILLA = r"""<!DOCTYPE html>
@@ -751,11 +730,15 @@ function renderPrograma(){
   const body = $('#progBody');
   if (!vis.length){ body.innerHTML = '<tr><td colspan="8" class="prog-empty">Sin mantenciones que coincidan con los filtros.</td></tr>'; return; }
   const frag = document.createDocumentFragment();
-  for (const x of vis){ const pe = getProg(x.k, x.m); const tr = document.createElement('tr');
+  for (const x of vis){
+    const ov = (notas[x.k] && notas[x.k].prog && notas[x.k].prog[x.m]) || null;
+    const fe = ov ? (ov.fe || '') : (x.fe || '');
+    const ua = ov ? (ov.ua || '') : (x.ua || '');
+    const tr = document.createElement('tr');
     tr.innerHTML = `<td class="eqn">${norm(x.eq)||'—'}</td><td>${norm(x.se)||'—'}</td><td>${norm(x.sv)||'—'}</td>
       <td>${MESES[x.m-1]}</td><td>${etiquetaPrograma(x.p)}</td><td>${etiquetaResultado(x.r)}</td>
-      <td><input type="date" class="fe" data-k="${(x.k||'').replace(/"/g,'&quot;')}" data-m="${x.m}" value="${pe.fe||''}"></td>
-      <td class="ua">${pe.fe ? (pe.ua||'') : '—'}</td>`;
+      <td><input type="date" class="fe" data-k="${(x.k||'').replace(/"/g,'&quot;')}" data-m="${x.m}" value="${fe}"></td>
+      <td class="ua">${fe ? ua : '—'}</td>`;
     frag.appendChild(tr); }
   body.replaceChildren(frag);
 }
@@ -1028,13 +1011,11 @@ render();
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", type=Path, default=DB_POR_DEFECTO)
-    ap.add_argument("--excel", type=Path, default=EXCEL_POR_DEFECTO,
-                    help="Excel de origen para el programa de mantención (hoja Registro_MP-2026)")
     ap.add_argument("--salida", type=Path, default=SALIDA_POR_DEFECTO)
     args = ap.parse_args()
 
     rows, db_reg = leer_datos(args.db)
-    programa = leer_programa(args.excel)
+    programa = leer_programa(args.db)
     headers = [h for _, h in COLUMNAS_ROW] + COLUMNAS_VIRT
     nb = len(COLUMNAS_BASE)
     html = (PLANTILLA
